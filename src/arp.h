@@ -6,7 +6,7 @@ struct _eth2
 {
     unsigned char dst_mac[ETH_ALEN];
     unsigned char src_mac[ETH_ALEN];
-    unsigned short type[2];
+    unsigned short type;
 } pack_eth2;
 
 					    

@@ -291,6 +291,8 @@ int talker(int sock)
 int listener(int sock)
 {
     struct sockaddr_in raddr;
+    struct ip *ihdr;
+    struct udphdr *uhdr;
     char buf[1024];
     int res;
     char * b;
@@ -352,12 +354,30 @@ int listener(int sock)
                 {
                     pe = (struct _eth2 *)buf;
 
+                    //packet type should be IP - 0x0800
+                    if (pe->type != htons(0x0800)) continue;
+
+                    //get IP header
+                    ihdr = (struct ip *)(buf + sizeof(struct _eth2));
+
+                    //IP version should be 4
+                    if (ihdr->ip_v != 4) continue;
+
+                    //protocol type should be UDP
+                    if (ihdr->ip_p != IPPROTO_UDP) continue;
+
+                    //get UDP header (ip_hl is a number of 32-bit words)
+                    uhdr = (struct udphdr *)((char *)ihdr + ihdr->ip_hl * 4);
+
+                    //src port should be 67 and dest port should be 68
+                    if (ntohs(uhdr->source) != 67 && ntohs(uhdr->dest) != 68) continue;
+
+                    //go to UDP payload - it should be bootstrap protocol response
+                    b = (char *)uhdr + 8;
+
                     printf("DHCP server MAC: ");
                     print_mac(pe->src_mac);
                     
-                    //todo do it correctly
-                    b = buf + 42;
-
                     dhcparse((struct _DHCPHeader *)b);
                 }
             counter--;
