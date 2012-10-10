@@ -9,17 +9,4 @@ struct _eth2
     unsigned short type;
 } pack_eth2;
 
-					    
-#define MAC_HDR_ETHER 1
-			    
-#define MAC_PR_IP 0x800
-#define MAC_PR_ARP 0x806
-				    
-#define MAC_OP_REQUEST 1
-#define MAC_OP_REPLY 2
-					    
-#define ETH_NULL "\x00\x00\x00\x00\x00\x00"
-#define ETH_BCAST "\xff\xff\xff\xff\xff\xff"
-					    
 #endif
-				    
