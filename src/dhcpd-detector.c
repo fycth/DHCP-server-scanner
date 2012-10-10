@@ -45,11 +45,6 @@ void print_mac(unsigned char *);
 
 unsigned int ifindex;
 unsigned int xid;
-unsigned int DhcpServerIP;
-unsigned int DhcpClientIP;
-unsigned int DhcpNetmask;
-unsigned int DhcpGatewayIP;
-unsigned int DhcpDNSServerIP;
 
 unsigned char mip[16];
 char dflag = 0;
@@ -502,6 +497,10 @@ int dhcparse(struct _DHCPHeader * packet)
     unsigned char tmp;
     unsigned char valc[255];
 
+    unsigned int DhcpServerIP;
+    unsigned int DhcpNetmask;
+    unsigned int DhcpGatewayIP;
+
     /* check that this is a DHCP response */
 
     if(packet->bootp.op != BOOTREPLY ||
@@ -520,15 +519,11 @@ int dhcparse(struct _DHCPHeader * packet)
 
     if (msgtype == DHCPOFFER)
     {
+        /* get server IP */
         val = 0;
         dhcpgetopt(packet->options,DHO_DHCP_SERVER_IDENTIFIER,4,&val);
         if (val == 0) val = packet->bootp.siaddr;
         DhcpServerIP = ntohl(val);
-        DhcpGatewayIP = DhcpServerIP;
-        DhcpDNSServerIP = DhcpServerIP;
-        DhcpClientIP = ntohl(packet->bootp.yiaddr);
-
-        /* get server IP */
         val = DhcpServerIP;
         printf("DHCP server IP %d.%d.%d.%d\n", (val >> 24) & 0xff, (val >> 16) & 0xff, (val >> 8) & 0xff, val & 0xff);
 
@@ -545,7 +540,6 @@ int dhcparse(struct _DHCPHeader * packet)
         dhcpgetopt(packet->options, DHO_SUBNET_MASK, 4, &val);
         DhcpNetmask = htonl(val);
         if(DhcpNetmask == 0) DhcpNetmask = 0xffffff00;
-
         val = DhcpNetmask;
         printf("proposed MASK: %d.%d.%d.%d\n", (val >> 24) & 0xff, (val >> 16) & 0xff, (val >> 8) & 0xff, val & 0xff);
 
@@ -553,14 +547,12 @@ int dhcparse(struct _DHCPHeader * packet)
         val = 0;
         dhcpgetopt(packet->options, DHO_ROUTERS, 4, &val);
         if(val != 0) DhcpGatewayIP = htonl(val);
-
         val = DhcpGatewayIP;
         printf("proposed GW: %d.%d.%d.%d\n", (val >> 24) & 0xff, (val >> 16) & 0xff, (val >> 8) & 0xff, val & 0xff);
 
         /* get dns */
         val = 0;
         tmp = dhcpgetopt(packet->options, DHO_DOMAIN_NAME_SERVERS, 255, &valc) / 4;
-
         for (cnt = 0; cnt < tmp; cnt++)
             {
                 val = htonl(*(unsigned int *)(valc + cnt * 4));
