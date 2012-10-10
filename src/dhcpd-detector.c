@@ -498,6 +498,9 @@ int dhcparse(struct _DHCPHeader * packet)
 {
     unsigned char	msgtype;
     unsigned int	val;
+    unsigned char cnt;
+    unsigned char tmp;
+    unsigned char valc[255];
 
     /* check that this is a DHCP response */
 
@@ -525,8 +528,17 @@ int dhcparse(struct _DHCPHeader * packet)
         DhcpDNSServerIP = DhcpServerIP;
         DhcpClientIP = ntohl(packet->bootp.yiaddr);
 
+        /* get server IP */
         val = DhcpServerIP;
         printf("DHCP server IP %d.%d.%d.%d\n", (val >> 24) & 0xff, (val >> 16) & 0xff, (val >> 8) & 0xff, val & 0xff);
+
+        /* get DHCP relay */
+        val = packet->bootp.giaddr;
+        printf("DHCP relay IP %d.%d.%d.%d\n", (val >> 24) & 0xff, (val >> 16) & 0xff, (val >> 8) & 0xff, val & 0xff);
+
+        /* get next DHCP server IP */
+        val = packet->bootp.siaddr;
+        printf("DHCP next server IP %d.%d.%d.%d\n", val & 0xff, (val >> 8) & 0xff, (val >> 16) & 0xff, (val >> 24) & 0xff);
 
         /* get netmask */
         val = 0;
@@ -535,7 +547,7 @@ int dhcparse(struct _DHCPHeader * packet)
         if(DhcpNetmask == 0) DhcpNetmask = 0xffffff00;
 
         val = DhcpNetmask;
-        printf("proposed mask: %d.%d.%d.%d\n", (val >> 24) & 0xff, (val >> 16) & 0xff, (val >> 8) & 0xff, val & 0xff);
+        printf("proposed MASK: %d.%d.%d.%d\n", (val >> 24) & 0xff, (val >> 16) & 0xff, (val >> 8) & 0xff, val & 0xff);
 
         /* get gateway */
         val = 0;
@@ -543,20 +555,22 @@ int dhcparse(struct _DHCPHeader * packet)
         if(val != 0) DhcpGatewayIP = htonl(val);
 
         val = DhcpGatewayIP;
-        printf("proposed gateway: %d.%d.%d.%d\n", (val >> 24) & 0xff, (val >> 16) & 0xff, (val >> 8) & 0xff, val & 0xff);
+        printf("proposed GW: %d.%d.%d.%d\n", (val >> 24) & 0xff, (val >> 16) & 0xff, (val >> 8) & 0xff, val & 0xff);
 
         /* get dns */
         val = 0;
-        dhcpgetopt(packet->options, DHO_DOMAIN_NAME_SERVERS, 4, &val);
-        if(val != 0) DhcpDNSServerIP = htonl(val);
+        tmp = dhcpgetopt(packet->options, DHO_DOMAIN_NAME_SERVERS, 255, &valc) / 4;
 
-        val = DhcpDNSServerIP;
-        printf("proposed dns: %d.%d.%d.%d\n", (val >> 24) & 0xff, (val >> 16) & 0xff, (val >> 8) & 0xff, val & 0xff);
+        for (cnt = 0; cnt < tmp; cnt++)
+            {
+                val = htonl(*(unsigned int *)(valc + cnt * 4));
+                printf("proposed DNS %d: %d.%d.%d.%d\n", cnt, (val >> 24) & 0xff, (val >> 16) & 0xff, (val >> 8) & 0xff, val & 0xff);
+            }
 
         /* get our ip */
         val = htonl(packet->bootp.yiaddr);
 
-        printf("proposed ip: %d.%d.%d.%d\n", (val >> 24) & 0xff, (val >> 16) & 0xff, (val >> 8) & 0xff, val & 0xff);
+        printf("proposed IP: %d.%d.%d.%d\n", (val >> 24) & 0xff, (val >> 16) & 0xff, (val >> 8) & 0xff, val & 0xff);
     };
 }
 
