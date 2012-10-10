@@ -95,7 +95,7 @@ int main(int argc, char *argv[])
 
     if (gopt(gopts,'z'))
     {
-        printf("\n\nDHCPD-Detector version %s\n\n",argv[0],VERSION);
+        printf("\n\nDHCPD-Detector version %s\n\n",VERSION);
         gopt_free(gopts);
         exit(0);
     };
@@ -251,7 +251,7 @@ int talker(int sock)
 
     udp_header->len = htons(sizeof(struct udphdr) + count + DHCP_HEADER_LEN);
     
-    // Calculate the checksum for integrity
+    /* Calculate the checksum for integrity */
     ip_header->ip_sum = ComputeChecksum((unsigned char *)ip_header, ip_header->ip_hl*4);
 
     /* Find the size of the TCP Header + Data */
@@ -282,8 +282,6 @@ int talker(int sock)
     res = sendto(sock,buffer,ip_header->ip_len,0,(struct sockaddr *)&raddr,sizeof(raddr));
 
     if (-1 == res) return 1;
-
-    //    printf("sent %d bytes\n",res);
 
     return 0;
 }
@@ -324,8 +322,6 @@ int listener(int sock)
                     return 1;
                 };
 
-            //            printf("retval %d\n",retval);
-
             if (-1 == retval) 
                 {
                     printf("%s","select error\n");
@@ -347,32 +343,30 @@ int listener(int sock)
                     printf("%s\n","Error when recvfrom");
                     return 1;
                 };
-
-            //            printf("recv %d\n",res);
-        
+       
             if (compare_mac(pe->dst_mac, mymac))
                 {
                     pe = (struct _eth2 *)buf;
 
-                    //packet type should be IP - 0x0800
+                    /* packet type should be IP - 0x0800 */
                     if (pe->type != htons(0x0800)) continue;
 
-                    //get IP header
+                    /* get IP header */
                     ihdr = (struct ip *)(buf + sizeof(struct _eth2));
 
-                    //IP version should be 4
+                    /* IP version should be 4 */
                     if (ihdr->ip_v != 4) continue;
 
-                    //protocol type should be UDP
+                    /* protocol type should be UDP */
                     if (ihdr->ip_p != IPPROTO_UDP) continue;
 
-                    //get UDP header (ip_hl is a number of 32-bit words)
+                    /* get UDP header (ip_hl is a number of 32-bit words) */
                     uhdr = (struct udphdr *)((char *)ihdr + ihdr->ip_hl * 4);
 
-                    //src port should be 67 and dest port should be 68
+                    /* src port should be 67 and dest port should be 68 */
                     if (ntohs(uhdr->source) != 67 && ntohs(uhdr->dest) != 68) continue;
 
-                    //go to UDP payload - it should be bootstrap protocol response
+                    /* go to UDP payload - it should be bootstrap protocol response */
                     b = (char *)uhdr + 8;
 
                     printf("DHCP server MAC: ");
@@ -480,17 +474,20 @@ unsigned int getip(unsigned char * iface, unsigned char * ip)
  */									
 unsigned char* dhcpsetopt(unsigned char* options, unsigned char optcode, unsigned char optlen, void* optvalptr)
 {
-    // use current options address as write point
-    // set optcode
+    /* use current options address as write point
+       set optcode */
     *options++ = optcode;
-    // set optlen
+
+    /* set optlen */
     *options++ = optlen;
-    // copy in argument/data
+
+    /* copy in argument/data */
     while(optlen--) *options++ = *(unsigned char*)optvalptr++;
-    // write end marker
+
+    /* write end marker */
     *options = DHO_END;
 			
-    // return address of end marker, to be used as a future write point
+    /* return address of end marker, to be used as a future write point */
     return options;
 }
 
@@ -502,7 +499,7 @@ int dhcparse(struct _DHCPHeader * packet)
     unsigned char	msgtype;
     unsigned int	val;
 
-// check that this is a DHCP response
+    /* check that this is a DHCP response */
 
     if(packet->bootp.op != BOOTREPLY ||
        packet->bootp.htype != HTYPE_ETHER ||
@@ -528,11 +525,10 @@ int dhcparse(struct _DHCPHeader * packet)
         DhcpDNSServerIP = DhcpServerIP;
         DhcpClientIP = ntohl(packet->bootp.yiaddr);
 
-        //        printf("%s\n","Got offer from server");
         val = DhcpServerIP;
         printf("DHCP server IP %d.%d.%d.%d\n", (val >> 24) & 0xff, (val >> 16) & 0xff, (val >> 8) & 0xff, val & 0xff);
 
-        // get netmask
+        /* get netmask */
         val = 0;
         dhcpgetopt(packet->options, DHO_SUBNET_MASK, 4, &val);
         DhcpNetmask = htonl(val);
@@ -541,7 +537,7 @@ int dhcparse(struct _DHCPHeader * packet)
         val = DhcpNetmask;
         printf("proposed mask: %d.%d.%d.%d\n", (val >> 24) & 0xff, (val >> 16) & 0xff, (val >> 8) & 0xff, val & 0xff);
 
-        // get gateway
+        /* get gateway */
         val = 0;
         dhcpgetopt(packet->options, DHO_ROUTERS, 4, &val);
         if(val != 0) DhcpGatewayIP = htonl(val);
@@ -549,7 +545,7 @@ int dhcparse(struct _DHCPHeader * packet)
         val = DhcpGatewayIP;
         printf("proposed gateway: %d.%d.%d.%d\n", (val >> 24) & 0xff, (val >> 16) & 0xff, (val >> 8) & 0xff, val & 0xff);
 
-        // get dns
+        /* get dns */
         val = 0;
         dhcpgetopt(packet->options, DHO_DOMAIN_NAME_SERVERS, 4, &val);
         if(val != 0) DhcpDNSServerIP = htonl(val);
@@ -557,7 +553,7 @@ int dhcparse(struct _DHCPHeader * packet)
         val = DhcpDNSServerIP;
         printf("proposed dns: %d.%d.%d.%d\n", (val >> 24) & 0xff, (val >> 16) & 0xff, (val >> 8) & 0xff, val & 0xff);
 
-        // get our ip
+        /* get our ip */
         val = htonl(packet->bootp.yiaddr);
 
         printf("proposed ip: %d.%d.%d.%d\n", (val >> 24) & 0xff, (val >> 16) & 0xff, (val >> 8) & 0xff, val & 0xff);
@@ -573,32 +569,37 @@ unsigned char dhcpgetopt(unsigned char* options, unsigned char optcode, unsigned
     
     for (;;)
     {
-        // skip pad characters
+        /* skip pad characters */
         if(*options == DHO_PAD) options++;
-        // break if end reached
+
+        /* break if end reached */
         else if(*options == DHO_END) break;
-        // check for desired option
+
+        /* check for desired option */
         else if(*options == optcode)
             {
-                // found desired option
-                // limit size to actual option length
+                /* found desired option
+                   limit size to actual option length */
                 optlen = (optlen < *(options+1)) ? optlen : *(options+1);
-                //if(*(options+1) < optlen)
-                //  optlen = *(options+1);
-                // copy contents of option
+
+                /* if(*(options+1) < optlen)
+                   optlen = *(options+1);
+                   copy contents of option */
                 for(i = 0; i < optlen; i++) *(((unsigned char*)optvalptr)+i) = *(options+i+2);
-                // return length of option
+
+                /* return length of option */
                 return *(options+1);
             }
         else
             {
-                // skip to next option
+                /* skip to next option */
                 options++;
                 options+=*options;
                 options++;
             };
     };
-    // failed to find desired option
+    
+    /* failed to find desired option */
     return 0;
 }
 
