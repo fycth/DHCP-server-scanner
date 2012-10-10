@@ -17,15 +17,25 @@ DHCP server MAC: 78e7d1f7c56e
 
 DHCP: Received msgtype = 2
 
+Server host name: Nathiny.dom.melko.com
+
+Boot filename: boot\x86\wdsnbp.com
+
 DHCP server IP 172.24.153.1
 
-proposed mask: 255.255.255.0
+DHCP relay IP 0.0.0.0
 
-proposed gateway: 172.24.153.1
+DHCP next server IP 194.95.62.7
 
-proposed dns: 8.8.8.8
+proposed MASK: 255.255.255.0
 
-proposed ip: 172.24.153.79
+proposed GW: 172.24.153.1
+
+proposed DNS 0: 4.4.4.4
+
+proposed DNS 1: 8.8.8.8
+
+proposed IP: 172.24.153.79
 
 <----- stopped ----->
 
