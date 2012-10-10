@@ -1,4 +1,9 @@
 
+/*
+ * author: Andrey Sergienko <andrey.sergienko@gmail.com>
+ * http://www.erazer.org
+*/
+
 #ifndef __ARP_INCLUDED__
 #define __ARP_INCLUDED__
 

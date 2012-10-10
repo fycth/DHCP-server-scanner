@@ -1,4 +1,9 @@
 
+/*
+ * author: Andrey Sergienko <andrey.sergienko@gmail.com>
+ * http://www.erazer.org
+*/
+
 #ifndef __DHCPD_DETECTOR_H_INCLUDED__
 #define __DHCPD_DETECTOR_H_INCLUDED__
 

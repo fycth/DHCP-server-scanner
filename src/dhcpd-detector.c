@@ -1,5 +1,6 @@
 /*
- * dhcpd-detector
+ * author: Andrey Sergienko <andrey.sergienko@gmail.com>
+ * http://www.erazer.org
 */
 
 #include <stdio.h>
