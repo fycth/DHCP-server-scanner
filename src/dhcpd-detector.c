@@ -515,6 +515,9 @@ int dhcparse(struct _DHCPHeader * packet)
     
     printf("DHCP: Received msgtype = %d\n", msgtype);
 
+    printf("Server host name: %s\n",packet->bootp.sname);
+    printf("Boot filename: %s\n",packet->bootp.file);
+
     if (msgtype == DHCPOFFER)
     {
         val = 0;
