@@ -251,7 +251,8 @@ int talker(int sock)
     ip_header->ip_sum = ComputeChecksum((unsigned char *)ip_header, ip_header->ip_hl*4);
 
     /* Find the size of the TCP Header + Data */
-    segment_len = ntohs(ip_header->ip_len) - ip_header->ip_hl*4; 
+    segment_len = ip_header->ip_len - ip_header->ip_hl*4; 
+
     /* Total length over which TCP checksum will be computed */
     header_len = sizeof(PseudoHeader) + segment_len;
 
@@ -339,11 +340,11 @@ int listener(int sock)
                     printf("%s\n","Error when recvfrom");
                     return 1;
                 };
-       
+
+            pe = (struct _eth2 *)buf;
+
             if (compare_mac(pe->dst_mac, mymac))
                 {
-                    pe = (struct _eth2 *)buf;
-
                     /* packet type should be IP - 0x0800 */
                     if (pe->type != htons(0x0800)) continue;
 
