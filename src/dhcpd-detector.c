@@ -243,7 +243,7 @@ int talker(int sock)
     count++;
     options = dhcpsetopt(options, DHO_END, 0, 0);
 
-    ip_header->ip_len = sizeof(struct ip) + sizeof(struct udphdr) + count + DHCP_HEADER_LEN;
+    ip_header->ip_len = htons(sizeof(struct ip) + sizeof(struct udphdr) + count + DHCP_HEADER_LEN);
 
     udp_header->len = htons(sizeof(struct udphdr) + count + DHCP_HEADER_LEN);
     
@@ -251,7 +251,7 @@ int talker(int sock)
     ip_header->ip_sum = ComputeChecksum((unsigned char *)ip_header, ip_header->ip_hl*4);
 
     /* Find the size of the TCP Header + Data */
-    segment_len = ip_header->ip_len - ip_header->ip_hl*4; 
+    segment_len = (sizeof(struct ip) + sizeof(struct udphdr) + count + DHCP_HEADER_LEN) - ip_header->ip_hl*4; 
 
     /* Total length over which TCP checksum will be computed */
     header_len = sizeof(PseudoHeader) + segment_len;
@@ -276,7 +276,7 @@ int talker(int sock)
         return 1;
     }
 
-    res = sendto(sock,buffer,ip_header->ip_len,0,(struct sockaddr *)&raddr,sizeof(raddr));
+    res = sendto(sock,buffer,(sizeof(struct ip) + sizeof(struct udphdr) + count + DHCP_HEADER_LEN),0,(struct sockaddr *)&raddr,sizeof(raddr));
 
     if (-1 == res) return 1;
 
