@@ -1,7 +1,7 @@
 DHCP-server-scanner
 ===================
 
-Unix console utility that implements DHCP client functionality to scan DHCP servers
+Unix console utility that implements DHCP client functionality to scan for DHCP servers
 
 To compile it you need 'cmake' utility installed
 
