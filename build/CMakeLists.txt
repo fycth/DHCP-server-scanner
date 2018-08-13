@@ -1,6 +1,6 @@
 cmake_minimum_required (VERSION 2.6 FATAL_ERROR)
 
-set (PROJECT ../bin/dhcpd-detector)
+set (PROJECT ./bin/dhcpd-detector)
 project (${PROJECT})
 
 set (HEADERS
