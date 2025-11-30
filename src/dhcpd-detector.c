@@ -116,9 +116,13 @@ int main(int argc, char *argv[])
         ifindex = getifindex(iface);
 
         sock = getsock();
+        if (-1 == sock)
+        {
+            gopt_free(gopts);
+            exit(1);
+        };
 
         lsock = getsock2();
-
         if (-1 == lsock)
         {
             close(sock);
@@ -662,16 +666,16 @@ int getsock()
     if (-1 == sock)
     {
         fprintf(stderr, "Error creating socket\n");
-        return 0;
+        return -1;
     };
-    
+
     res = 1;
     res = setsockopt(sock,SOL_SOCKET,SO_BROADCAST,(const char *)&res,sizeof(res));
     if (-1 == res)
     {
         close(sock);
         fprintf(stderr, "Error when setsockopt\n");
-        return 0;
+        return -1;
     };
 
     res = setsockopt(sock,SOL_SOCKET,SO_BINDTODEVICE,iface,strlen(iface));
@@ -679,9 +683,9 @@ int getsock()
     {
         close(sock);
         fprintf(stderr, "Error when setsockopt bind to device\n");
-        return 0;
+        return -1;
     };
-    
+
     s_addr.sin_family = AF_INET;
     s_addr.sin_addr.s_addr = INADDR_BROADCAST;
     s_addr.sin_port = htons(67);
@@ -690,7 +694,7 @@ int getsock()
     {
         close(sock);
         fprintf(stderr, "Error binding raw socket to interface\n");
-        return 0;
+        return -1;
     }
 
     return sock;
