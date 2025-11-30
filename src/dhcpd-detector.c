@@ -429,14 +429,15 @@ unsigned int getifindex(unsigned char *iface)
     signed int tmpsock;
 	
     memset(&ifr, 0x0, sizeof(struct ifreq));
-    strncpy(ifr.ifr_name, iface, IF_NAMESIZE-1);
-    
+    strncpy(ifr.ifr_name, (char *)iface, IF_NAMESIZE-1);
+    ifr.ifr_name[IF_NAMESIZE-1] = '\0';
+
     if((tmpsock = socket(AF_INET,SOCK_STREAM,0))< 0)
     {
         printf("%s\n","getifindex tmpsock fail");
         return 0;
     }
-    
+
     if(ioctl(tmpsock, SIOCGIFINDEX, &ifr)< 0)
     {
         close(tmpsock);
@@ -458,14 +459,15 @@ unsigned int getip(unsigned char * iface, unsigned char * ip)
     struct sockaddr_in * sa;
 	
     memset(&ifr, 0x0, sizeof(struct ifreq));
-    strncpy(ifr.ifr_name, iface, IF_NAMESIZE-1);
-    
+    strncpy(ifr.ifr_name, (char *)iface, IF_NAMESIZE-1);
+    ifr.ifr_name[IF_NAMESIZE-1] = '\0';
+
     if((tmpsock = socket(AF_INET,SOCK_STREAM,0))< 0)
     {
         printf("%s\n","getip tmpsock fail");
         return 0;
     }
-    
+
     if(ioctl(tmpsock, SIOCGIFADDR, &ifr)< 0)
     {
         close(tmpsock);
