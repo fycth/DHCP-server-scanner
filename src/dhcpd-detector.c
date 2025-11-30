@@ -134,7 +134,7 @@ int main(int argc, char *argv[])
 
         if (talker(sock))
             {
-                printf("%s\n","something error in talker");
+                fprintf(stderr, "something error in talker\n");
                 close(sock);
                 close(lsock);
                 gopt_free(gopts);
@@ -280,7 +280,7 @@ int talker(int sock)
 
     if(setsockopt(sock, IPPROTO_IP, IP_HDRINCL, val, sizeof(one)) < 0)
     {
-        printf("setsockopt() error\n");
+        fprintf(stderr, "setsockopt() error\n");
         return 1;
     }
 
@@ -323,20 +323,20 @@ int listener(int sock)
 
             if (FD_ISSET(sock,&errfd))
                 {
-                    printf("%s\n"," Socket listener problem");
+                    fprintf(stderr, "Socket listener problem\n");
                     return 1;
                 };
 
             if (-1 == retval) 
                 {
-                    printf("%s","select error\n");
+                    fprintf(stderr, "select error\n");
                     return 1;
                 }
 
             if (!FD_ISSET(sock,&recfd))
                 {
 
-                    printf("%s\n"," listener Timeout");
+                    fprintf(stderr, "listener Timeout\n");
                     return 0;
                 };
 
@@ -345,7 +345,7 @@ int listener(int sock)
 
             if (-1 == res)
                 {
-                    printf("%s\n","Error when recvfrom");
+                    fprintf(stderr, "Error when recvfrom\n");
                     return 1;
                 };
 
@@ -406,7 +406,7 @@ void getmac(unsigned char * iname, unsigned char * hwaddr)
     sock = socket(AF_INET, SOCK_DGRAM, 0);
     if (sock < 0)
     {
-        printf("%s\n", "getmac socket fail");
+        fprintf(stderr, "getmac socket fail\n");
         memset(hwaddr, 0, 6);
         return;
     }
@@ -417,7 +417,7 @@ void getmac(unsigned char * iname, unsigned char * hwaddr)
 
     if (ioctl(sock, SIOCGIFHWADDR, &ifr) < 0)
     {
-        printf("%s\n", "getmac ioctl fail");
+        fprintf(stderr, "getmac ioctl fail\n");
         close(sock);
         memset(hwaddr, 0, 6);
         return;
@@ -442,14 +442,14 @@ unsigned int getifindex(unsigned char *iface)
 
     if((tmpsock = socket(AF_INET,SOCK_STREAM,0))< 0)
     {
-        printf("%s\n","getifindex tmpsock fail");
+        fprintf(stderr, "getifindex tmpsock fail\n");
         return 0;
     }
 
     if(ioctl(tmpsock, SIOCGIFINDEX, &ifr)< 0)
     {
         close(tmpsock);
-        printf("%s\n","getifindex ioclt fail");
+        fprintf(stderr, "getifindex ioctl fail\n");
         return 0;
     }
 										
@@ -472,14 +472,14 @@ unsigned int getip(unsigned char * iface, unsigned char * ip)
 
     if((tmpsock = socket(AF_INET,SOCK_STREAM,0))< 0)
     {
-        printf("%s\n","getip tmpsock fail");
+        fprintf(stderr, "getip tmpsock fail\n");
         return 0;
     }
 
     if(ioctl(tmpsock, SIOCGIFADDR, &ifr)< 0)
     {
         close(tmpsock);
-        printf("%s\n","getip ioclt fail");
+        fprintf(stderr, "getip ioctl fail\n");
         return 0;
     }
 										
@@ -660,7 +660,7 @@ int getsock()
     sock = socket(PF_INET,SOCK_RAW,IPPROTO_UDP);
     if (-1 == sock)
     {
-        printf("%s\n","Error creating socket");
+        fprintf(stderr, "Error creating socket\n");
         return 0;
     };
     
@@ -669,7 +669,7 @@ int getsock()
     if (-1 == res)
     {
         close(sock);
-        printf("%s\n","Error when setsockopt");
+        fprintf(stderr, "Error when setsockopt\n");
         return 0;
     };
 
@@ -677,7 +677,7 @@ int getsock()
     if (-1 == res)
     {
         close(sock);
-        printf("%s\n","Error when setsockopt bind to device");
+        fprintf(stderr, "Error when setsockopt bind to device\n");
         return 0;
     };
     
@@ -688,7 +688,7 @@ int getsock()
     if((bind(sock, (struct sockaddr *)&s_addr, sizeof(s_addr)))== -1)
     {
         close(sock);
-        printf("Error binding raw socket to interface\n");
+        fprintf(stderr, "Error binding raw socket to interface\n");
         return 0;
     }
 
@@ -706,7 +706,7 @@ int getsock2()
 
       if((s = socket(PF_PACKET, SOCK_RAW, htons(ETH_P_ALL))) < 0) 
           {
-              printf("socket(PF_PACKET)\n");
+              fprintf(stderr, "socket(PF_PACKET) failed\n");
               return -1;
           }
 
@@ -721,7 +721,7 @@ int getsock2()
 
     if (bind(s, (struct sockaddr *)&bindaddr, sizeof(bindaddr)) < 0)
         {
-            printf("Cannot bind raw socket to interface\n");
+            fprintf(stderr, "Cannot bind raw socket to interface\n");
             return -1;
         }
 
