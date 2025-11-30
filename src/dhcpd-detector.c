@@ -58,6 +58,14 @@ int sock;
 
 unsigned char mymac[ETH_ALEN];
 
+volatile sig_atomic_t running = 1;
+
+static void signal_handler(int signum)
+{
+    (void)signum;
+    running = 0;
+}
+
 /*------------------------------------
  main function
 ------------------------------------*/
@@ -65,6 +73,9 @@ unsigned char mymac[ETH_ALEN];
 int main(int argc, char *argv[])
 {
     int lsock;
+
+    signal(SIGINT, signal_handler);
+    signal(SIGTERM, signal_handler);
 
     srand(time(NULL));
 
@@ -306,7 +317,7 @@ int listener(int sock)
     socklen_t addrlen;
     struct _eth2 * pe;
 
-    while (counter)
+    while (counter && running)
         {
             memset(buf,0,sizeof(buf));
 
@@ -327,8 +338,10 @@ int listener(int sock)
                     return 1;
                 };
 
-            if (-1 == retval) 
+            if (-1 == retval)
                 {
+                    if (errno == EINTR)
+                        continue;
                     fprintf(stderr, "select error\n");
                     return 1;
                 }
