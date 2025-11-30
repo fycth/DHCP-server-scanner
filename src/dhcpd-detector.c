@@ -27,6 +27,7 @@ unsigned char dhcp_get_opt(unsigned char *options, unsigned char optcode,
 void usage(const char *myname);
 void print_mac(unsigned char *mac);
 void print_ip(const char *label, unsigned int ip);
+void list_interfaces(void);
 
 /* Global variables */
 volatile sig_atomic_t running = 1;
@@ -41,6 +42,7 @@ static void signal_handler(int signum)
 static struct option long_options[] = {
     {"help",    no_argument,       NULL, 'h'},
     {"version", no_argument,       NULL, 'V'},
+    {"list",    no_argument,       NULL, 'l'},
     {"iface",   required_argument, NULL, 'i'},
     {"timeout", required_argument, NULL, 't'},
     {NULL,      0,                 NULL,  0 }
@@ -69,7 +71,7 @@ int main(int argc, char *argv[])
 
     srand(time(NULL));
 
-    while ((opt = getopt_long(argc, argv, "hVi:t:", long_options, NULL)) != -1) {
+    while ((opt = getopt_long(argc, argv, "hVli:t:", long_options, NULL)) != -1) {
         switch (opt) {
         case 'h':
             usage(argv[0]);
@@ -77,6 +79,10 @@ int main(int argc, char *argv[])
 
         case 'V':
             printf("DHCPD-Detector version %s\n", VERSION);
+            return 0;
+
+        case 'l':
+            list_interfaces();
             return 0;
 
         case 'i':
@@ -449,14 +455,44 @@ unsigned char dhcp_get_opt(unsigned char *options, unsigned char optcode,
 }
 
 /*
+  list available network interfaces suitable for DHCP scanning
+ */
+void list_interfaces(void)
+{
+    iface_info_t *list = platform_list_interfaces();
+
+    if (!list) {
+        printf("No suitable network interfaces found.\n");
+        printf("Interfaces must be: UP, support BROADCAST, not LOOPBACK\n");
+        return;
+    }
+
+    printf("Available interfaces for DHCP scanning:\n\n");
+    printf("%-12s %-17s  %s\n", "INTERFACE", "MAC", "IP");
+    printf("%-12s %-17s  %s\n", "---------", "-----------------", "---------------");
+
+    for (iface_info_t *p = list; p; p = p->next) {
+        printf("%-12s %02x:%02x:%02x:%02x:%02x:%02x  %s\n",
+               p->name,
+               p->mac[0], p->mac[1], p->mac[2],
+               p->mac[3], p->mac[4], p->mac[5],
+               p->has_ip ? p->ip : "(no IP)");
+    }
+
+    platform_free_iface_list(list);
+}
+
+/*
   short help on how to use this program
  */
 void usage(const char *myname)
 {
-    printf("Usage: %s -i <interface> [-t <timeout>]\n\n", myname);
+    printf("Usage: %s -i <interface> [-t <timeout>]\n", myname);
+    printf("       %s -l\n\n", myname);
     printf("Options:\n");
     printf("  -h, --help       Show this help message\n");
     printf("  -V, --version    Show version\n");
+    printf("  -l, --list       List available network interfaces\n");
     printf("  -i, --iface      Network interface to scan (required)\n");
     printf("  -t, --timeout    Timeout in seconds (default: 3)\n");
 }

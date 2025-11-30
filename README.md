@@ -21,7 +21,15 @@ A lightweight cross-platform command-line utility that scans your local network 
 - **Cross-platform** — Works on Linux and macOS
 - Fast network scanning for DHCP servers
 - Displays server MAC address, IP, and offered configuration
-- Shows DNS servers, gateway, subnet mask, and proposed IP
+- Shows comprehensive DHCP options:
+  - DNS servers, gateway, subnet mask
+  - Domain name and hostname
+  - Lease time (human-readable)
+  - NTP servers, WINS servers
+  - Vendor class identifier
+  - Static routes (CIDR format)
+  - PXE boot options (TFTP server, bootfile)
+- **List available interfaces** — Shows only interfaces suitable for DHCP scanning
 - Minimal dependencies — pure C, no external libraries
 - Lightweight and portable
 
@@ -69,12 +77,28 @@ sudo ./bin/dhcpd-detector-release -i <interface> [-t <timeout>]
 
 | Option | Description |
 |--------|-------------|
+| `-l, --list` | List available network interfaces for DHCP scanning |
 | `-i, --iface` | Network interface to scan (required) |
 | `-t, --timeout` | Timeout in seconds (default: 3) |
 | `-h, --help` | Show help message |
-| `--version` | Show version |
+| `-V, --version` | Show version |
 
 ### Quick Start
+
+**List available interfaces:**
+```bash
+./bin/dhcpd-detector-release -l
+```
+
+Output:
+```
+Available interfaces for DHCP scanning:
+
+INTERFACE    MAC                IP
+---------    -----------------  ---------------
+en0          62:e7:27:25:07:7f  192.168.0.23
+eth0         00:1a:2b:3c:4d:5e  192.168.1.100
+```
 
 **Linux:**
 ```bash
@@ -94,7 +118,7 @@ sudo ./bin/dhcpd-detector-release -i en0
 sudo ./bin/dhcpd-detector-release -i en1 -t 10
 ```
 
-> **Note:** Root privileges are required to send and receive raw network packets.
+> **Note:** Root privileges are required to send and receive raw network packets. The `-l` option does not require root.
 
 ## Example
 
@@ -105,15 +129,17 @@ $ sudo ./bin/dhcpd-detector-release -i eth0
 DHCP server MAC: 78e7d1f7c56e
 DHCP: Received msgtype = 2
 Server host name: router.local
-Boot filename:
-DHCP server IP 192.168.1.1
-DHCP relay IP 0.0.0.0
-DHCP next server IP 192.168.1.1
-proposed MASK: 255.255.255.0
-proposed GW: 192.168.1.1
-proposed DNS 0: 8.8.8.8
-proposed DNS 1: 8.8.4.4
-proposed IP: 192.168.1.105
+DHCP server IP: 192.168.1.1
+Offered IP: 192.168.1.105
+Subnet mask: 255.255.255.0
+Broadcast: 192.168.1.255
+Gateway: 192.168.1.1
+DNS server 1: 8.8.8.8
+DNS server 2: 8.8.4.4
+Domain name: home.local
+Lease time: 1d 0h 0m 0s (86400 seconds)
+NTP server 1: 192.168.1.1
+Vendor class: MSFT 5.0
 <----- stopped ----->
 ```
 

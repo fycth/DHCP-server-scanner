@@ -68,4 +68,28 @@ unsigned char *platform_parse_dhcp_response(unsigned char *buf, size_t len,
                                             unsigned char *our_mac,
                                             size_t *dhcp_len);
 
+/*
+ * Interface information structure
+ */
+typedef struct iface_info {
+    char name[16];              /* Interface name */
+    unsigned char mac[ETH_ALEN]; /* MAC address */
+    char ip[16];                /* IPv4 address (dotted decimal) */
+    int has_ip;                 /* Has IPv4 address assigned */
+    struct iface_info *next;    /* Linked list */
+} iface_info_t;
+
+/*
+ * List network interfaces suitable for DHCP scanning
+ * Filters: UP, BROADCAST, !LOOPBACK, !POINTOPOINT
+ * Returns: linked list of interfaces, NULL if none found
+ * Caller must free with platform_free_iface_list()
+ */
+iface_info_t *platform_list_interfaces(void);
+
+/*
+ * Free interface list returned by platform_list_interfaces()
+ */
+void platform_free_iface_list(iface_info_t *list);
+
 #endif /* __PLATFORM_H__ */

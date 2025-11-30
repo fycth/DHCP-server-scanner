@@ -524,4 +524,99 @@ unsigned char *platform_parse_dhcp_response(unsigned char *buf, size_t len,
     return buf;
 }
 
+iface_info_t *platform_list_interfaces(void)
+{
+    struct ifaddrs *ifap, *ifa;
+    iface_info_t *head = NULL;
+    iface_info_t *tail = NULL;
+
+    if (getifaddrs(&ifap) < 0)
+        return NULL;
+
+    /* First pass: find interfaces with suitable flags */
+    for (ifa = ifap; ifa; ifa = ifa->ifa_next) {
+        if (ifa->ifa_addr == NULL)
+            continue;
+
+        /* Check flags: must be UP, BROADCAST, not LOOPBACK, not POINTOPOINT */
+        unsigned int flags = ifa->ifa_flags;
+        if (!(flags & IFF_UP))
+            continue;
+        if (!(flags & IFF_BROADCAST))
+            continue;
+        if (flags & IFF_LOOPBACK)
+            continue;
+        if (flags & IFF_POINTOPOINT)
+            continue;
+
+        /* Only process AF_LINK entries (one per interface on macOS) */
+        if (ifa->ifa_addr->sa_family != AF_LINK)
+            continue;
+
+        struct sockaddr_dl *sdl = (struct sockaddr_dl *)ifa->ifa_addr;
+
+        /* Must have Ethernet-length MAC address */
+        if (sdl->sdl_alen != ETH_ALEN)
+            continue;
+
+        /* Check if already in list (shouldn't happen but be safe) */
+        int found = 0;
+        for (iface_info_t *p = head; p; p = p->next) {
+            if (strcmp(p->name, ifa->ifa_name) == 0) {
+                found = 1;
+                break;
+            }
+        }
+        if (found)
+            continue;
+
+        /* Create new entry */
+        iface_info_t *info = calloc(1, sizeof(iface_info_t));
+        if (!info)
+            continue;
+
+        strncpy(info->name, ifa->ifa_name, sizeof(info->name) - 1);
+        memcpy(info->mac, LLADDR(sdl), ETH_ALEN);
+        info->has_ip = 0;
+        info->next = NULL;
+
+        if (tail) {
+            tail->next = info;
+            tail = info;
+        } else {
+            head = tail = info;
+        }
+    }
+
+    /* Second pass: fill in IPv4 addresses */
+    for (ifa = ifap; ifa; ifa = ifa->ifa_next) {
+        if (ifa->ifa_addr == NULL)
+            continue;
+        if (ifa->ifa_addr->sa_family != AF_INET)
+            continue;
+
+        /* Find matching interface in our list */
+        for (iface_info_t *p = head; p; p = p->next) {
+            if (strcmp(p->name, ifa->ifa_name) == 0 && !p->has_ip) {
+                struct sockaddr_in *sa = (struct sockaddr_in *)ifa->ifa_addr;
+                snprintf(p->ip, sizeof(p->ip), "%s", inet_ntoa(sa->sin_addr));
+                p->has_ip = 1;
+                break;
+            }
+        }
+    }
+
+    freeifaddrs(ifap);
+    return head;
+}
+
+void platform_free_iface_list(iface_info_t *list)
+{
+    while (list) {
+        iface_info_t *next = list->next;
+        free(list);
+        list = next;
+    }
+}
+
 #endif /* __APPLE__ */
