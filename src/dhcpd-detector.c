@@ -44,6 +44,7 @@ void usage(char * myname);
 int getsock();
 int getsock2();
 void print_mac(unsigned char *);
+void print_ip(const char *label, unsigned int ip);
 
 unsigned int ifindex;
 unsigned int xid;
@@ -391,6 +392,18 @@ void print_mac(unsigned char *mac)
 }
 
 /*
+  printout IP address in human-readable format (host byte order)
+ */
+void print_ip(const char *label, unsigned int ip)
+{
+    printf("%s%d.%d.%d.%d\n", label,
+           (ip >> 24) & 0xff,
+           (ip >> 16) & 0xff,
+           (ip >> 8) & 0xff,
+           ip & 0xff);
+}
+
+/*
   get network interface MAC address
  */
 void getmac(unsigned char * iname, unsigned char * hwaddr)
@@ -547,45 +560,38 @@ int dhcparse(struct _DHCPHeader * packet)
         dhcpgetopt(packet->options,DHO_DHCP_SERVER_IDENTIFIER,4,&val);
         if (val == 0) val = packet->bootp.siaddr;
         DhcpServerIP = ntohl(val);
-        val = DhcpServerIP;
-        printf("DHCP server IP %d.%d.%d.%d\n", (val >> 24) & 0xff, (val >> 16) & 0xff, (val >> 8) & 0xff, val & 0xff);
+        print_ip("DHCP server IP ", DhcpServerIP);
 
         /* get DHCP relay */
-        val = packet->bootp.giaddr;
-        printf("DHCP relay IP %d.%d.%d.%d\n", (val >> 24) & 0xff, (val >> 16) & 0xff, (val >> 8) & 0xff, val & 0xff);
+        print_ip("DHCP relay IP ", ntohl(packet->bootp.giaddr));
 
         /* get next DHCP server IP */
-        val = packet->bootp.siaddr;
-        printf("DHCP next server IP %d.%d.%d.%d\n", val & 0xff, (val >> 8) & 0xff, (val >> 16) & 0xff, (val >> 24) & 0xff);
+        print_ip("DHCP next server IP ", ntohl(packet->bootp.siaddr));
 
         /* get netmask */
         val = 0;
         dhcpgetopt(packet->options, DHO_SUBNET_MASK, 4, &val);
         DhcpNetmask = htonl(val);
         if(DhcpNetmask == 0) DhcpNetmask = 0xffffff00;
-        val = DhcpNetmask;
-        printf("proposed MASK: %d.%d.%d.%d\n", (val >> 24) & 0xff, (val >> 16) & 0xff, (val >> 8) & 0xff, val & 0xff);
+        print_ip("proposed MASK: ", DhcpNetmask);
 
         /* get gateway */
         val = 0;
         dhcpgetopt(packet->options, DHO_ROUTERS, 4, &val);
         if(val != 0) DhcpGatewayIP = htonl(val);
-        val = DhcpGatewayIP;
-        printf("proposed GW: %d.%d.%d.%d\n", (val >> 24) & 0xff, (val >> 16) & 0xff, (val >> 8) & 0xff, val & 0xff);
+        print_ip("proposed GW: ", DhcpGatewayIP);
 
         /* get dns */
-        val = 0;
         tmp = dhcpgetopt(packet->options, DHO_DOMAIN_NAME_SERVERS, 255, &valc) / 4;
         for (cnt = 0; cnt < tmp; cnt++)
             {
-                val = htonl(*(unsigned int *)(valc + cnt * 4));
-                printf("proposed DNS %d: %d.%d.%d.%d\n", cnt, (val >> 24) & 0xff, (val >> 16) & 0xff, (val >> 8) & 0xff, val & 0xff);
+                char dns_label[32];
+                snprintf(dns_label, sizeof(dns_label), "proposed DNS %d: ", cnt);
+                print_ip(dns_label, htonl(*(unsigned int *)(valc + cnt * 4)));
             }
 
         /* get our ip */
-        val = htonl(packet->bootp.yiaddr);
-
-        printf("proposed IP: %d.%d.%d.%d\n", (val >> 24) & 0xff, (val >> 16) & 0xff, (val >> 8) & 0xff, val & 0xff);
+        print_ip("proposed IP: ", ntohl(packet->bootp.yiaddr));
     };
 
     return 0;
