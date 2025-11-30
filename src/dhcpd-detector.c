@@ -408,36 +408,49 @@ void print_ip(const char *label, unsigned int ip)
 }
 
 /*
-  get network interface MAC address
+  helper: perform ioctl on interface
+  returns 0 on success, -1 on failure
  */
-void getmac(unsigned char * iname, unsigned char * hwaddr)
+static int iface_ioctl(const char *iface_name, unsigned long request, struct ifreq *ifr)
 {
     int sock;
-    struct ifreq ifr;
+
+    memset(ifr, 0, sizeof(struct ifreq));
+    strncpy(ifr->ifr_name, iface_name, IFNAMSIZ - 1);
+    ifr->ifr_name[IFNAMSIZ - 1] = '\0';
 
     sock = socket(AF_INET, SOCK_DGRAM, 0);
     if (sock < 0)
     {
-        fprintf(stderr, "getmac socket fail\n");
-        memset(hwaddr, 0, 6);
-        return;
+        fprintf(stderr, "iface_ioctl: socket failed\n");
+        return -1;
     }
 
-    ifr.ifr_addr.sa_family = AF_INET;
-    strncpy(ifr.ifr_name, (char *)iname, IFNAMSIZ-1);
-    ifr.ifr_name[IFNAMSIZ-1] = '\0';
-
-    if (ioctl(sock, SIOCGIFHWADDR, &ifr) < 0)
+    if (ioctl(sock, request, ifr) < 0)
     {
-        fprintf(stderr, "getmac ioctl fail\n");
+        fprintf(stderr, "iface_ioctl: ioctl failed\n");
         close(sock);
-        memset(hwaddr, 0, 6);
-        return;
+        return -1;
     }
 
     close(sock);
+    return 0;
+}
 
-    memcpy(hwaddr, ifr.ifr_hwaddr.sa_data, 6);
+/*
+  get network interface MAC address
+ */
+void getmac(unsigned char * iname, unsigned char * hwaddr)
+{
+    struct ifreq ifr;
+
+    if (iface_ioctl((char *)iname, SIOCGIFHWADDR, &ifr) < 0)
+    {
+        memset(hwaddr, 0, ETH_ALEN);
+        return;
+    }
+
+    memcpy(hwaddr, ifr.ifr_hwaddr.sa_data, ETH_ALEN);
 }
 
 /*
@@ -446,26 +459,12 @@ void getmac(unsigned char * iname, unsigned char * hwaddr)
 unsigned int getifindex(unsigned char *iface)
 {
     struct ifreq ifr;
-    signed int tmpsock;
-	
-    memset(&ifr, 0x0, sizeof(struct ifreq));
-    strncpy(ifr.ifr_name, (char *)iface, IF_NAMESIZE-1);
-    ifr.ifr_name[IF_NAMESIZE-1] = '\0';
 
-    if((tmpsock = socket(AF_INET,SOCK_STREAM,0))< 0)
+    if (iface_ioctl((char *)iface, SIOCGIFINDEX, &ifr) < 0)
     {
-        fprintf(stderr, "getifindex tmpsock fail\n");
         return 0;
     }
 
-    if(ioctl(tmpsock, SIOCGIFINDEX, &ifr)< 0)
-    {
-        close(tmpsock);
-        fprintf(stderr, "getifindex ioctl fail\n");
-        return 0;
-    }
-										
-    close(tmpsock);
     return ifr.ifr_ifindex;
 }
 
@@ -475,30 +474,16 @@ unsigned int getifindex(unsigned char *iface)
 unsigned int getip(unsigned char * iface, unsigned char * ip)
 {
     struct ifreq ifr;
-    signed int tmpsock;
-    struct sockaddr_in * sa;
-	
-    memset(&ifr, 0x0, sizeof(struct ifreq));
-    strncpy(ifr.ifr_name, (char *)iface, IF_NAMESIZE-1);
-    ifr.ifr_name[IF_NAMESIZE-1] = '\0';
+    struct sockaddr_in *sa;
 
-    if((tmpsock = socket(AF_INET,SOCK_STREAM,0))< 0)
+    if (iface_ioctl((char *)iface, SIOCGIFADDR, &ifr) < 0)
     {
-        fprintf(stderr, "getip tmpsock fail\n");
         return 0;
     }
 
-    if(ioctl(tmpsock, SIOCGIFADDR, &ifr)< 0)
-    {
-        close(tmpsock);
-        fprintf(stderr, "getip ioctl fail\n");
-        return 0;
-    }
-										
-    close(tmpsock);
     sa = (struct sockaddr_in *)&ifr.ifr_addr;
     snprintf((char *)ip, 16, "%s", inet_ntoa(sa->sin_addr));
-    
+
     return 1;
 }
 
