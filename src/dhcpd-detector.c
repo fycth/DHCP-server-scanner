@@ -13,26 +13,22 @@
 #include <errno.h>
 #include <string.h>
 #include <signal.h>
+#include <getopt.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
 
 #include "dhcpd-detector.h"
 #include "platform.h"
-#include "gopt.h"
 
 /* Function prototypes */
 int dhcparse(struct _DHCPHeader *packet, uint32_t xid);
 unsigned char dhcpgetopt(unsigned char *options, unsigned char optcode,
                          unsigned char optlen, void *optvalptr);
-void usage(char *myname);
+void usage(const char *myname);
 void print_mac(unsigned char *mac);
 void print_ip(const char *label, unsigned int ip);
 
 /* Global variables */
-int i_timeout = 3;
-const char *s_timeout;
-void *gopts;
-
 volatile sig_atomic_t running = 1;
 
 static void signal_handler(int signum)
@@ -41,6 +37,15 @@ static void signal_handler(int signum)
     running = 0;
 }
 
+/* Command line options */
+static struct option long_options[] = {
+    {"help",    no_argument,       NULL, 'h'},
+    {"version", no_argument,       NULL, 'V'},
+    {"iface",   required_argument, NULL, 'i'},
+    {"timeout", required_argument, NULL, 't'},
+    {NULL,      0,                 NULL,  0 }
+};
+
 /*------------------------------------
  main function
 ------------------------------------*/
@@ -48,7 +53,8 @@ static void signal_handler(int signum)
 int main(int argc, char *argv[])
 {
     platform_ctx_t *ctx = NULL;
-    unsigned char *iface = NULL;
+    const char *iface = NULL;
+    int timeout = 3;
     unsigned char mymac[ETH_ALEN];
     unsigned char mip[16];
     uint32_t xid;
@@ -56,118 +62,115 @@ int main(int argc, char *argv[])
     unsigned char src_mac[ETH_ALEN];
     int counter;
     int res;
+    int opt;
 
     signal(SIGINT, signal_handler);
     signal(SIGTERM, signal_handler);
 
     srand(time(NULL));
 
-    gopts = gopt_sort(&argc, (const char **)argv, (const void *)gopt_start(
-        gopt_option('h', 0, gopt_shorts('h', '?'), gopt_longs("help")),
-        gopt_option('z', 0, gopt_shorts(0), gopt_longs("version")),
-        gopt_option('i', GOPT_ARG, gopt_shorts('i'), gopt_longs("iface")),
-        gopt_option('t', GOPT_ARG, gopt_shorts('t'), gopt_longs("timeout"))
-    ));
+    while ((opt = getopt_long(argc, argv, "hVi:t:", long_options, NULL)) != -1) {
+        switch (opt) {
+        case 'h':
+            usage(argv[0]);
+            return 0;
 
-    if (gopt(gopts, 'h')) {
+        case 'V':
+            printf("DHCPD-Detector version %s\n", VERSION);
+            return 0;
+
+        case 'i':
+            iface = optarg;
+            break;
+
+        case 't': {
+            char *endptr;
+            long val = strtol(optarg, &endptr, 10);
+            if (*endptr != '\0' || val <= 0 || val > INT_MAX) {
+                fprintf(stderr, "Error: Invalid timeout value '%s'\n", optarg);
+                return 1;
+            }
+            timeout = (int)val;
+            break;
+        }
+
+        default:
+            usage(argv[0]);
+            return 1;
+        }
+    }
+
+    if (!iface) {
+        fprintf(stderr, "Error: Interface is required (-i option)\n\n");
         usage(argv[0]);
-        gopt_free(gopts);
-        exit(0);
+        return 1;
     }
 
-    if (gopt(gopts, 'z')) {
-        printf("\n\nDHCPD-Detector version %s\n\n", VERSION);
-        gopt_free(gopts);
-        exit(0);
+    /* Initialize platform */
+    ctx = platform_init(iface);
+    if (!ctx) {
+        fprintf(stderr, "Failed to initialize on interface %s\n", iface);
+        return 1;
     }
 
-    if (gopt_arg(gopts, 't', &s_timeout)) {
-        char *endptr;
-        long val = strtol(s_timeout, &endptr, 10);
-        if (*endptr != '\0' || val <= 0 || val > INT_MAX) {
-            fprintf(stderr, "Time value is incorrect\n");
-            gopt_free(gopts);
-            exit(1);
-        }
-        i_timeout = (int)val;
-    }
-
-    if (gopt_arg(gopts, 'i', (const char **)&iface) && strcmp((char *)iface, "-")) {
-        /* Initialize platform */
-        ctx = platform_init((char *)iface);
-        if (!ctx) {
-            fprintf(stderr, "Failed to initialize on interface %s\n", iface);
-            gopt_free(gopts);
-            exit(1);
-        }
-
-        /* Get interface info */
-        if (platform_get_mac(ctx, mymac) < 0) {
-            fprintf(stderr, "Failed to get MAC address\n");
-            platform_cleanup(ctx);
-            gopt_free(gopts);
-            exit(1);
-        }
-
-        platform_get_ip(ctx, (char *)mip, sizeof(mip));
-
-        printf("<----- DHCP scan started ----->\n");
-
-        /* Generate transaction ID */
-        xid = (uint32_t)rand();
-
-        /* Send DHCP Discover */
-        if (platform_send_dhcp_discover(ctx, mymac, xid) < 0) {
-            fprintf(stderr, "Failed to send DHCP Discover\n");
-            platform_cleanup(ctx);
-            gopt_free(gopts);
-            exit(1);
-        }
-
-        /* Receive responses */
-        counter = MAX_RECV_ATTEMPTS;
-        while (counter && running) {
-            memset(recv_buf, 0, sizeof(recv_buf));
-            memset(src_mac, 0, sizeof(src_mac));
-
-            res = platform_receive(ctx, recv_buf, sizeof(recv_buf),
-                                   i_timeout, src_mac);
-
-            if (res < 0) {
-                fprintf(stderr, "Receive error\n");
-                break;
-            }
-
-            if (res == 0) {
-                fprintf(stderr, "Timeout waiting for DHCP response\n");
-                break;
-            }
-
-            /* Parse response */
-            size_t dhcp_len;
-            unsigned char *dhcp_data = platform_parse_dhcp_response(
-                recv_buf, res, mymac, &dhcp_len);
-
-            if (dhcp_data) {
-                printf("DHCP server MAC: ");
-                print_mac(src_mac);
-
-                dhcparse((struct _DHCPHeader *)dhcp_data, xid);
-            }
-
-            counter--;
-        }
-
+    /* Get interface info */
+    if (platform_get_mac(ctx, mymac) < 0) {
+        fprintf(stderr, "Failed to get MAC address\n");
         platform_cleanup(ctx);
-        gopt_free(gopts);
-
-        printf("<----- stopped ----->\n");
-
-        return 0;
+        return 1;
     }
 
-    usage(argv[0]);
-    gopt_free(gopts);
+    platform_get_ip(ctx, (char *)mip, sizeof(mip));
+
+    printf("<----- DHCP scan started ----->\n");
+
+    /* Generate transaction ID */
+    xid = (uint32_t)rand();
+
+    /* Send DHCP Discover */
+    if (platform_send_dhcp_discover(ctx, mymac, xid) < 0) {
+        fprintf(stderr, "Failed to send DHCP Discover\n");
+        platform_cleanup(ctx);
+        return 1;
+    }
+
+    /* Receive responses */
+    counter = MAX_RECV_ATTEMPTS;
+    while (counter && running) {
+        memset(recv_buf, 0, sizeof(recv_buf));
+        memset(src_mac, 0, sizeof(src_mac));
+
+        res = platform_receive(ctx, recv_buf, sizeof(recv_buf),
+                               timeout, src_mac);
+
+        if (res < 0) {
+            fprintf(stderr, "Receive error\n");
+            break;
+        }
+
+        if (res == 0) {
+            fprintf(stderr, "Timeout waiting for DHCP response\n");
+            break;
+        }
+
+        /* Parse response */
+        size_t dhcp_len;
+        unsigned char *dhcp_data = platform_parse_dhcp_response(
+            recv_buf, res, mymac, &dhcp_len);
+
+        if (dhcp_data) {
+            printf("DHCP server MAC: ");
+            print_mac(src_mac);
+
+            dhcparse((struct _DHCPHeader *)dhcp_data, xid);
+        }
+
+        counter--;
+    }
+
+    platform_cleanup(ctx);
+
+    printf("<----- stopped ----->\n");
 
     return 0;
 }
@@ -314,8 +317,12 @@ unsigned char dhcpgetopt(unsigned char *options, unsigned char optcode,
 /*
   short help on how to use this program
  */
-void usage(char *myname)
+void usage(const char *myname)
 {
-    printf("\n\nUsage: %s [-h] [--version] <-i interface> [-t timeout]\n", myname);
-    printf("-h,--help\thelp\n-i,--iface\tnetwork interface to detect on\n-t,--timeout\ttimeout in secs\n\n");
+    printf("Usage: %s -i <interface> [-t <timeout>]\n\n", myname);
+    printf("Options:\n");
+    printf("  -h, --help       Show this help message\n");
+    printf("  -V, --version    Show version\n");
+    printf("  -i, --iface      Network interface to scan (required)\n");
+    printf("  -t, --timeout    Timeout in seconds (default: 3)\n");
 }

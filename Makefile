@@ -26,10 +26,10 @@ ifeq ($(UNAME_S),Darwin)
 endif
 
 # Source files
-SOURCES = $(SRCDIR)/dhcpd-detector.c $(SRCDIR)/gopt.c $(PLATFORM_SRC)
+SOURCES = $(SRCDIR)/dhcpd-detector.c $(PLATFORM_SRC)
 
 # Header files
-HEADERS = $(SRCDIR)/dhcpd-detector.h $(SRCDIR)/gopt.h $(SRCDIR)/sum.h \
+HEADERS = $(SRCDIR)/dhcpd-detector.h $(SRCDIR)/sum.h \
           $(SRCDIR)/arp.h $(SRCDIR)/pseudo.h $(SRCDIR)/platform.h
 
 # Targets
