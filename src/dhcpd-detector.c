@@ -120,8 +120,9 @@ int main(int argc, char *argv[])
 
         lsock = getsock2();
 
-        if (0 == sock)
+        if (-1 == lsock)
         {
+            close(sock);
             gopt_free(gopts);
             exit(1);
         };
