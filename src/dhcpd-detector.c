@@ -127,22 +127,18 @@ int main(int argc, char *argv[])
             exit(1);
         };
 
-        while(1)
+        printf("%s\n","<----- DHCP scan started ----->");
+
+        if (talker(sock))
             {
-                printf("%s\n","<----- DHCP scan started ----->");
-
-                if (talker(sock))
-                    {
-                        printf("%s\n","something error in talker");
-                        close(sock);
-                        gopt_free(gopts);
-                        exit(1);
-                    };
-
-                if (0 != listener(lsock)) break;
-            
-                break;
+                printf("%s\n","something error in talker");
+                close(sock);
+                close(lsock);
+                gopt_free(gopts);
+                exit(1);
             };
+
+        listener(lsock);
 
         close(sock);
         close(lsock);
