@@ -361,7 +361,7 @@ int listener(int sock)
                     uhdr = (struct udphdr *)((char *)ihdr + ihdr->ip_hl * 4);
 
                     /* src port should be 67 and dest port should be 68 */
-                    if (ntohs(uhdr->source) != 67 && ntohs(uhdr->dest) != 68) continue;
+                    if (ntohs(uhdr->source) != 67 || ntohs(uhdr->dest) != 68) continue;
 
                     /* go to UDP payload - it should be bootstrap protocol response */
                     b = (char *)uhdr + 8;
