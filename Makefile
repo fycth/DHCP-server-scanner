@@ -13,6 +13,7 @@ CFLAGS_RELEASE = -O2 -DNDEBUG
 # Directories
 SRCDIR = src
 BINDIR = bin
+TESTDIR = tests
 
 # Detect platform
 UNAME_S := $(shell uname -s)
@@ -35,8 +36,9 @@ HEADERS = $(SRCDIR)/dhcpd-detector.h $(SRCDIR)/sum.h \
 # Targets
 TARGET_DEBUG = $(BINDIR)/dhcpd-detector-debug
 TARGET_RELEASE = $(BINDIR)/dhcpd-detector-release
+TARGET_TEST = $(BINDIR)/test_runner
 
-.PHONY: all debug release clean info
+.PHONY: all debug release clean info test
 
 all: debug release
 
@@ -55,6 +57,14 @@ $(BINDIR):
 
 clean:
 	rm -rf $(BINDIR)
+
+# Unit tests (no external dependencies)
+test: $(TARGET_TEST)
+	@echo "Running tests..."
+	@./$(TARGET_TEST)
+
+$(TARGET_TEST): $(TESTDIR)/test_main.c $(SRCDIR)/dhcpd-detector.h $(SRCDIR)/sum.h | $(BINDIR)
+	$(CC) $(CFLAGS) $(CFLAGS_DEBUG) -o $@ $(TESTDIR)/test_main.c
 
 # Show detected platform
 info:
