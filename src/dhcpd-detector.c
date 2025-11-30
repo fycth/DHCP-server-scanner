@@ -5,6 +5,7 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <time.h>
 #include <unistd.h>
 #include <errno.h>
 #include <string.h>
@@ -67,7 +68,9 @@ unsigned char mymac[ETH_ALEN];
 int main(int argc, char *argv[])
 {
     int lsock;
-  
+
+    srand(time(NULL));
+
     gopts = gopt_sort(&argc,(const char **)argv,(const void *)gopt_start(
 	   gopt_option('h',0,gopt_shorts('h','?'),gopt_longs("help")),
 	   gopt_option('z',0,gopt_shorts(0),gopt_longs("version")),
