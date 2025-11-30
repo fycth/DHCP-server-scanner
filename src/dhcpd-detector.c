@@ -50,15 +50,11 @@ unsigned int ifindex;
 unsigned int xid;
 
 unsigned char mip[16];
-char dflag = 0;
-int lfp;
 unsigned char * iface;
 int i_timeout = 3;
-int i_period = 3;
 const char * s_timeout;
 void * gopts;
 int sock;
-const char * s_period;
 
 unsigned char mymac[ETH_ALEN];
 
