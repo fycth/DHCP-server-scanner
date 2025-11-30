@@ -5,6 +5,7 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <limits.h>
 #include <time.h>
 #include <unistd.h>
 #include <errno.h>
@@ -101,13 +102,15 @@ int main(int argc, char *argv[])
     
     if (gopt_arg(gopts,'t',&s_timeout))
     {
-        i_timeout = atoi(s_timeout);
-        if (!i_timeout)
+        char *endptr;
+        long val = strtol(s_timeout, &endptr, 10);
+        if (*endptr != '\0' || val <= 0 || val > INT_MAX)
             {
-                printf("%s\n","Time value is incorrect");
+                fprintf(stderr, "Time value is incorrect\n");
                 gopt_free(gopts);
                 exit(1);
             };
+        i_timeout = (int)val;
     };
 
     if (gopt_arg(gopts,'i',(const char **)&iface) && strcmp(iface,"-"))
