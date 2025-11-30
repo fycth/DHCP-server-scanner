@@ -199,6 +199,26 @@ void print_ip(const char *label, unsigned int ip)
 }
 
 /*
+  format lease time as human-readable string
+ */
+static void format_lease_time(unsigned int seconds, char *buf, size_t buf_len)
+{
+    unsigned int days = seconds / 86400;
+    unsigned int hours = (seconds % 86400) / 3600;
+    unsigned int mins = (seconds % 3600) / 60;
+    unsigned int secs = seconds % 60;
+
+    if (days > 0)
+        snprintf(buf, buf_len, "%ud %uh %um %us", days, hours, mins, secs);
+    else if (hours > 0)
+        snprintf(buf, buf_len, "%uh %um %us", hours, mins, secs);
+    else if (mins > 0)
+        snprintf(buf, buf_len, "%um %us", mins, secs);
+    else
+        snprintf(buf, buf_len, "%us", secs);
+}
+
+/*
   parse DHCP packet and printout it
  */
 int dhcp_parse(dhcp_header_t *packet, uint32_t xid)
@@ -208,6 +228,7 @@ int dhcp_parse(dhcp_header_t *packet, uint32_t xid)
     unsigned char cnt;
     unsigned char tmp;
     unsigned char valc[255];
+    char strbuf[256];
 
     unsigned int dhcp_server_ip;
     unsigned int dhcp_netmask;
@@ -225,8 +246,11 @@ int dhcp_parse(dhcp_header_t *packet, uint32_t xid)
 
     printf("DHCP: Received msgtype = %d\n", msgtype);
 
-    printf("Server host name: %s\n", packet->bootp.sname);
-    printf("Boot filename: %s\n", packet->bootp.file);
+    /* BOOTP header fields */
+    if (packet->bootp.sname[0] != '\0')
+        printf("Server host name: %s\n", packet->bootp.sname);
+    if (packet->bootp.file[0] != '\0')
+        printf("Boot filename: %s\n", packet->bootp.file);
 
     if (msgtype == DHCPOFFER) {
         /* get server IP */
@@ -235,13 +259,18 @@ int dhcp_parse(dhcp_header_t *packet, uint32_t xid)
         if (val == 0)
             val = packet->bootp.siaddr;
         dhcp_server_ip = ntohl(val);
-        print_ip("DHCP server IP ", dhcp_server_ip);
+        print_ip("DHCP server IP: ", dhcp_server_ip);
 
         /* get DHCP relay */
-        print_ip("DHCP relay IP ", ntohl(packet->bootp.giaddr));
+        if (packet->bootp.giaddr != 0)
+            print_ip("DHCP relay IP: ", ntohl(packet->bootp.giaddr));
 
         /* get next DHCP server IP */
-        print_ip("DHCP next server IP ", ntohl(packet->bootp.siaddr));
+        if (packet->bootp.siaddr != 0)
+            print_ip("Next server IP: ", ntohl(packet->bootp.siaddr));
+
+        /* get our ip */
+        print_ip("Offered IP: ", ntohl(packet->bootp.yiaddr));
 
         /* get netmask */
         val = 0;
@@ -249,25 +278,130 @@ int dhcp_parse(dhcp_header_t *packet, uint32_t xid)
         dhcp_netmask = htonl(val);
         if (dhcp_netmask == 0)
             dhcp_netmask = 0xffffff00;
-        print_ip("proposed MASK: ", dhcp_netmask);
+        print_ip("Subnet mask: ", dhcp_netmask);
+
+        /* get broadcast address */
+        val = 0;
+        if (dhcp_get_opt(packet->options, DHO_BROADCAST_ADDRESS, 4, &val) > 0)
+            print_ip("Broadcast: ", ntohl(val));
 
         /* get gateway */
         val = 0;
         dhcp_get_opt(packet->options, DHO_ROUTERS, 4, &val);
         if (val != 0)
             dhcp_gateway_ip = htonl(val);
-        print_ip("proposed GW: ", dhcp_gateway_ip);
+        print_ip("Gateway: ", dhcp_gateway_ip);
 
-        /* get dns */
-        tmp = dhcp_get_opt(packet->options, DHO_DOMAIN_NAME_SERVERS, 255, &valc) / 4;
+        /* get dns servers */
+        memset(valc, 0, sizeof(valc));
+        tmp = dhcp_get_opt(packet->options, DHO_DOMAIN_NAME_SERVERS, 255, valc) / 4;
         for (cnt = 0; cnt < tmp; cnt++) {
             char dns_label[32];
-            snprintf(dns_label, sizeof(dns_label), "proposed DNS %d: ", cnt);
+            snprintf(dns_label, sizeof(dns_label), "DNS server %d: ", cnt + 1);
             print_ip(dns_label, htonl(*(unsigned int *)(valc + cnt * 4)));
         }
 
-        /* get our ip */
-        print_ip("proposed IP: ", ntohl(packet->bootp.yiaddr));
+        /* get domain name */
+        memset(strbuf, 0, sizeof(strbuf));
+        if (dhcp_get_opt(packet->options, DHO_DOMAIN_NAME, 255, strbuf) > 0)
+            printf("Domain name: %s\n", strbuf);
+
+        /* get host name */
+        memset(strbuf, 0, sizeof(strbuf));
+        if (dhcp_get_opt(packet->options, DHO_HOST_NAME, 255, strbuf) > 0)
+            printf("Host name: %s\n", strbuf);
+
+        /* get lease time */
+        val = 0;
+        if (dhcp_get_opt(packet->options, DHO_DHCP_LEASE_TIME, 4, &val) > 0) {
+            format_lease_time(ntohl(val), strbuf, sizeof(strbuf));
+            printf("Lease time: %s (%u seconds)\n", strbuf, ntohl(val));
+        }
+
+        /* get NTP servers */
+        memset(valc, 0, sizeof(valc));
+        tmp = dhcp_get_opt(packet->options, DHO_NTP_SERVERS, 255, valc) / 4;
+        for (cnt = 0; cnt < tmp; cnt++) {
+            char ntp_label[32];
+            snprintf(ntp_label, sizeof(ntp_label), "NTP server %d: ", cnt + 1);
+            print_ip(ntp_label, htonl(*(unsigned int *)(valc + cnt * 4)));
+        }
+
+        /* get NetBIOS/WINS name servers */
+        memset(valc, 0, sizeof(valc));
+        tmp = dhcp_get_opt(packet->options, DHO_NETBIOS_NAME_SERVERS, 255, valc) / 4;
+        for (cnt = 0; cnt < tmp; cnt++) {
+            char wins_label[32];
+            snprintf(wins_label, sizeof(wins_label), "WINS server %d: ", cnt + 1);
+            print_ip(wins_label, htonl(*(unsigned int *)(valc + cnt * 4)));
+        }
+
+        /* get NetBIOS node type */
+        val = 0;
+        if (dhcp_get_opt(packet->options, DHO_NETBIOS_NODE_TYPE, 1, &val) > 0) {
+            const char *node_type;
+            switch (val & 0xFF) {
+                case 1: node_type = "B-node (broadcast)"; break;
+                case 2: node_type = "P-node (point-to-point)"; break;
+                case 4: node_type = "M-node (mixed)"; break;
+                case 8: node_type = "H-node (hybrid)"; break;
+                default: node_type = "Unknown"; break;
+            }
+            printf("NetBIOS node type: %s\n", node_type);
+        }
+
+        /* get TFTP server name */
+        memset(strbuf, 0, sizeof(strbuf));
+        if (dhcp_get_opt(packet->options, DHO_TFTP_SERVER_NAME, 255, strbuf) > 0)
+            printf("TFTP server: %s\n", strbuf);
+
+        /* get bootfile name (option 67) */
+        memset(strbuf, 0, sizeof(strbuf));
+        if (dhcp_get_opt(packet->options, DHO_BOOTFILE_NAME, 255, strbuf) > 0)
+            printf("Bootfile name: %s\n", strbuf);
+
+        /* get vendor class identifier */
+        memset(strbuf, 0, sizeof(strbuf));
+        if (dhcp_get_opt(packet->options, DHO_VENDOR_CLASS_ID, 255, strbuf) > 0)
+            printf("Vendor class: %s\n", strbuf);
+
+        /* get classless static routes (option 121) */
+        memset(valc, 0, sizeof(valc));
+        tmp = dhcp_get_opt(packet->options, DHO_CLASSLESS_STATIC_ROUTES, 255, valc);
+        if (tmp > 0) {
+            printf("Static routes:\n");
+            unsigned char *p = valc;
+            unsigned char *end = valc + tmp;
+            while (p < end) {
+                unsigned char mask_bits = *p++;
+                unsigned char mask_bytes = (mask_bits + 7) / 8;
+                unsigned int dest = 0;
+                unsigned int gateway_rt;
+
+                if (p + mask_bytes + 4 > end)
+                    break;
+
+                /* read destination (only significant bytes) */
+                for (cnt = 0; cnt < mask_bytes && cnt < 4; cnt++)
+                    dest |= ((unsigned int)p[cnt]) << (24 - cnt * 8);
+                p += mask_bytes;
+
+                /* read gateway */
+                memcpy(&gateway_rt, p, 4);
+                p += 4;
+
+                printf("  %d.%d.%d.%d/%d via %d.%d.%d.%d\n",
+                       (dest >> 24) & 0xff,
+                       (dest >> 16) & 0xff,
+                       (dest >> 8) & 0xff,
+                       dest & 0xff,
+                       mask_bits,
+                       gateway_rt & 0xff,
+                       (gateway_rt >> 8) & 0xff,
+                       (gateway_rt >> 16) & 0xff,
+                       (gateway_rt >> 24) & 0xff);
+            }
+        }
     }
 
     return 0;

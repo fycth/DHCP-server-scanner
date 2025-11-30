@@ -282,11 +282,21 @@ int platform_send_dhcp_discover(platform_ctx_t *ctx, unsigned char *mac, uint32_
     buf[1] = DHO_ROUTERS;
     buf[2] = DHO_DOMAIN_NAME_SERVERS;
     buf[3] = DHO_DOMAIN_NAME;
-    count += 2 + 4;
+    buf[4] = DHO_BROADCAST_ADDRESS;
+    buf[5] = DHO_NTP_SERVERS;
+    buf[6] = DHO_NETBIOS_NAME_SERVERS;
+    buf[7] = DHO_NETBIOS_NODE_TYPE;
+    buf[8] = DHO_DHCP_LEASE_TIME;
+    buf[9] = DHO_TFTP_SERVER_NAME;
+    buf[10] = DHO_BOOTFILE_NAME;
+    buf[11] = DHO_VENDOR_CLASS_ID;
+    buf[12] = DHO_HOST_NAME;
+    buf[13] = DHO_CLASSLESS_STATIC_ROUTES;
+    count += 2 + 14;
     *options++ = DHO_DHCP_PARAMETER_REQUEST_LIST;
-    *options++ = 4;
-    memcpy(options, buf, 4);
-    options += 4;
+    *options++ = 14;
+    memcpy(options, buf, 14);
+    options += 14;
 
     count++;
     *options++ = DHO_END;

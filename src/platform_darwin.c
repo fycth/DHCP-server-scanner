@@ -344,12 +344,22 @@ int platform_send_dhcp_discover(platform_ctx_t *ctx, unsigned char *mac, uint32_
 
     /* Parameter request list */
     *options++ = DHO_DHCP_PARAMETER_REQUEST_LIST;
-    *options++ = 4;
+    *options++ = 14;  /* number of requested options */
     *options++ = DHO_SUBNET_MASK;
     *options++ = DHO_ROUTERS;
     *options++ = DHO_DOMAIN_NAME_SERVERS;
     *options++ = DHO_DOMAIN_NAME;
-    count += 6;
+    *options++ = DHO_BROADCAST_ADDRESS;
+    *options++ = DHO_NTP_SERVERS;
+    *options++ = DHO_NETBIOS_NAME_SERVERS;
+    *options++ = DHO_NETBIOS_NODE_TYPE;
+    *options++ = DHO_DHCP_LEASE_TIME;
+    *options++ = DHO_TFTP_SERVER_NAME;
+    *options++ = DHO_BOOTFILE_NAME;
+    *options++ = DHO_VENDOR_CLASS_ID;
+    *options++ = DHO_HOST_NAME;
+    *options++ = DHO_CLASSLESS_STATIC_ROUTES;
+    count += 16;
 
     /* End */
     *options++ = DHO_END;
