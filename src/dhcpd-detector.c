@@ -397,16 +397,30 @@ void getmac(unsigned char * iname, unsigned char * hwaddr)
 {
     int sock;
     struct ifreq ifr;
-    
+
     sock = socket(AF_INET, SOCK_DGRAM, 0);
+    if (sock < 0)
+    {
+        printf("%s\n", "getmac socket fail");
+        memset(hwaddr, 0, 6);
+        return;
+    }
+
     ifr.ifr_addr.sa_family = AF_INET;
-    strncpy(ifr.ifr_name,iname,IFNAMSIZ-1);
-    
-    ioctl(sock,SIOCGIFHWADDR,&ifr);
-    
+    strncpy(ifr.ifr_name, (char *)iname, IFNAMSIZ-1);
+    ifr.ifr_name[IFNAMSIZ-1] = '\0';
+
+    if (ioctl(sock, SIOCGIFHWADDR, &ifr) < 0)
+    {
+        printf("%s\n", "getmac ioctl fail");
+        close(sock);
+        memset(hwaddr, 0, 6);
+        return;
+    }
+
     close(sock);
-    
-    memcpy(hwaddr,ifr.ifr_hwaddr.sa_data,6);
+
+    memcpy(hwaddr, ifr.ifr_hwaddr.sa_data, 6);
 }
 
 /*
@@ -663,6 +677,7 @@ int getsock()
 
     if((bind(sock, (struct sockaddr *)&s_addr, sizeof(s_addr)))== -1)
     {
+        close(sock);
         printf("Error binding raw socket to interface\n");
         return 0;
     }
