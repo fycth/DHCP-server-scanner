@@ -501,7 +501,7 @@ int dhcparse(struct _DHCPHeader * packet)
 
     unsigned int DhcpServerIP;
     unsigned int DhcpNetmask;
-    unsigned int DhcpGatewayIP;
+    unsigned int DhcpGatewayIP = 0;
 
     /* check that this is a DHCP response */
 
