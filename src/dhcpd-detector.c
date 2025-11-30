@@ -635,8 +635,8 @@ unsigned char dhcpgetopt(unsigned char* options, unsigned char optcode, unsigned
  */
 void usage(char * myname)
 {
-    printf("\n\nUsage: %s [-h] [--version] [-d] <-i interface> [-t timeout]\n",myname);
-    printf("-h,--help\thelp\n-i,--iface\tnetwork interface to detect on\n-t,--timeout\ttimeout on secs\n\n");
+    printf("\n\nUsage: %s [-h] [--version] <-i interface> [-t timeout]\n",myname);
+    printf("-h,--help\thelp\n-i,--iface\tnetwork interface to detect on\n-t,--timeout\ttimeout in secs\n\n");
 }
 
 /*
