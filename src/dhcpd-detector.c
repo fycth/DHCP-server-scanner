@@ -461,7 +461,7 @@ unsigned int getip(unsigned char * iface, unsigned char * ip)
 										
     close(tmpsock);
     sa = (struct sockaddr_in *)&ifr.ifr_addr;
-    sprintf(ip,"%s",inet_ntoa(sa->sin_addr));
+    snprintf((char *)ip, 16, "%s", inet_ntoa(sa->sin_addr));
     
     return 1;
 }
