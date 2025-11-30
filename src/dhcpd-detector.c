@@ -295,7 +295,7 @@ int listener(int sock)
     fd_set recfd, errfd;
     int retval;
     int counter = 3;
-    int addrlen;
+    socklen_t addrlen;
     struct _eth2 * pe;
 
     while (counter)
