@@ -592,8 +592,9 @@ int dhcparse(struct _DHCPHeader * packet)
 unsigned char dhcpgetopt(unsigned char* options, unsigned char optcode, unsigned char optlen, void* optvalptr)
 {
     unsigned char i;
-    
-    for (;;)
+    int max_iterations = 512; /* prevent infinite loop on malformed packets */
+
+    while (max_iterations-- > 0)
     {
         /* skip pad characters */
         if(*options == DHO_PAD) options++;
@@ -624,7 +625,7 @@ unsigned char dhcpgetopt(unsigned char* options, unsigned char optcode, unsigned
                 options++;
             };
     };
-    
+
     /* failed to find desired option */
     return 0;
 }
