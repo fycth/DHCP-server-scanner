@@ -487,6 +487,8 @@ unsigned int getip(unsigned char * iface, unsigned char * ip)
  */									
 unsigned char* dhcpsetopt(unsigned char* options, unsigned char optcode, unsigned char optlen, void* optvalptr)
 {
+    unsigned char *src = (unsigned char *)optvalptr;
+
     /* use current options address as write point
        set optcode */
     *options++ = optcode;
@@ -495,11 +497,11 @@ unsigned char* dhcpsetopt(unsigned char* options, unsigned char optcode, unsigne
     *options++ = optlen;
 
     /* copy in argument/data */
-    while(optlen--) *options++ = *(unsigned char*)optvalptr++;
+    while(optlen--) *options++ = *src++;
 
     /* write end marker */
     *options = DHO_END;
-			
+
     /* return address of end marker, to be used as a future write point */
     return options;
 }
