@@ -1,10 +1,11 @@
 /*
- * macOS/Darwin platform implementation using BPF (Berkeley Packet Filter)
+ * BSD platform implementation using BPF (Berkeley Packet Filter)
+ * Supports: macOS/Darwin, FreeBSD, OpenBSD, NetBSD
  *
  * Copyright (c) 2011-2025 Andrii Serhiienko
  */
 
-#ifdef __APPLE__
+#if defined(__APPLE__) || defined(__FreeBSD__) || defined(__OpenBSD__) || defined(__NetBSD__) || defined(__DragonFly__)
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -19,17 +20,42 @@
 #include <net/if.h>
 #include <net/bpf.h>
 #include <net/if_dl.h>
-#include <net/ethernet.h>
 #include <netinet/in.h>
 #include <netinet/ip.h>
 #include <netinet/udp.h>
 #include <arpa/inet.h>
 #include <ifaddrs.h>
 
+/* Handle differences in ethernet header location */
+#if defined(__APPLE__)
+#include <net/ethernet.h>
+#elif defined(__OpenBSD__)
+#include <netinet/if_ether.h>
+#include <net/if_arp.h>
+#else
+/* FreeBSD, NetBSD, DragonFly */
+#include <net/if_ether.h>
+#endif
+
 #include "platform.h"
 #include "dhcpd-detector.h"
 #include "pseudo.h"
 #include "sum.h"
+
+/* ETH_ALEN may not be defined on some BSDs - they use ETHER_ADDR_LEN */
+#ifndef ETH_ALEN
+#define ETH_ALEN ETHER_ADDR_LEN
+#endif
+
+/* Ensure ETHER_ADDR_LEN is defined */
+#ifndef ETHER_ADDR_LEN
+#define ETHER_ADDR_LEN 6
+#endif
+
+/* Some BSDs don't define ETHERTYPE_IP */
+#ifndef ETHERTYPE_IP
+#define ETHERTYPE_IP 0x0800
+#endif
 
 struct platform_ctx {
     char iface[IFNAMSIZ];
@@ -54,6 +80,13 @@ static int open_bpf_device(void)
         if (errno != EBUSY)
             continue;
     }
+
+    /* Try /dev/bpf on OpenBSD (cloning device) */
+#if defined(__OpenBSD__)
+    fd = open("/dev/bpf", O_RDWR);
+    if (fd >= 0)
+        return fd;
+#endif
 
     fprintf(stderr, "open_bpf_device: no available BPF device\n");
     return -1;
@@ -168,18 +201,15 @@ platform_ctx_t *platform_init(const char *iface)
 
     /* Set header complete - we provide full Ethernet header */
     if (ioctl(ctx->bpf_fd, BIOCSHDRCMPLT, &hdrcmplt) < 0) {
-        fprintf(stderr, "platform_init: BIOCSHDRCMPLT failed\n");
-        free(ctx->read_buf);
-        close(ctx->bpf_fd);
-        free(ctx);
-        return NULL;
+        /* Non-fatal on some systems, continue */
+        fprintf(stderr, "platform_init: BIOCSHDRCMPLT failed (non-fatal)\n");
     }
 
     /* Set read timeout */
     tv.tv_sec = 5;
     tv.tv_usec = 0;
     if (ioctl(ctx->bpf_fd, BIOCSRTIMEOUT, &tv) < 0) {
-        fprintf(stderr, "platform_init: BIOCSRTIMEOUT failed\n");
+        fprintf(stderr, "platform_init: BIOCSRTIMEOUT failed (non-fatal)\n");
         /* Non-fatal, continue */
     }
 
@@ -187,7 +217,7 @@ platform_ctx_t *platform_init(const char *iface)
     struct bpf_insn dhcp_filter[] = {
         /* Check Ethernet type is IP (0x0800) */
         BPF_STMT(BPF_LD + BPF_H + BPF_ABS, 12),
-        BPF_JUMP(BPF_JMP + BPF_JEQ + BPF_K, 0x0800, 0, 7),
+        BPF_JUMP(BPF_JMP + BPF_JEQ + BPF_K, ETHERTYPE_IP, 0, 7),
         /* Check IP protocol is UDP (17) */
         BPF_STMT(BPF_LD + BPF_B + BPF_ABS, 23),
         BPF_JUMP(BPF_JMP + BPF_JEQ + BPF_K, IPPROTO_UDP, 0, 5),
@@ -305,8 +335,14 @@ int platform_send_dhcp_discover(platform_ctx_t *ctx, unsigned char *mac, uint32_
 
     /* UDP header */
     udp_hdr = (struct udphdr *)p;
+#if defined(__OpenBSD__)
+    /* OpenBSD uses different field names */
     udp_hdr->uh_sport = htons(68);       /* DHCP client port */
     udp_hdr->uh_dport = htons(67);       /* DHCP server port */
+#else
+    udp_hdr->uh_sport = htons(68);       /* DHCP client port */
+    udp_hdr->uh_dport = htons(67);       /* DHCP server port */
+#endif
     p += sizeof(struct udphdr);
 
     /* DHCP packet */
@@ -376,7 +412,11 @@ int platform_send_dhcp_discover(platform_ctx_t *ctx, unsigned char *mac, uint32_
     ip_hdr->ip_sum = compute_checksum((unsigned char *)ip_hdr, sizeof(struct ip));
 
     /* Set UDP length and checksum */
+#if defined(__OpenBSD__)
     udp_hdr->uh_ulen = htons(udp_len);
+#else
+    udp_hdr->uh_ulen = htons(udp_len);
+#endif
 
     /* Calculate UDP checksum with pseudo header */
     memset(&pseudo, 0, sizeof(pseudo));
@@ -388,7 +428,11 @@ int platform_send_dhcp_discover(platform_ctx_t *ctx, unsigned char *mac, uint32_
 
     memcpy(pseudo_buf, &pseudo, sizeof(pseudo));
     memcpy(pseudo_buf + sizeof(pseudo), udp_hdr, udp_len);
+#if defined(__OpenBSD__)
     udp_hdr->uh_sum = compute_checksum(pseudo_buf, sizeof(pseudo) + udp_len);
+#else
+    udp_hdr->uh_sum = compute_checksum(pseudo_buf, sizeof(pseudo) + udp_len);
+#endif
 
     /* Send via BPF */
     sent = write(ctx->bpf_fd, frame, total_len);
@@ -466,14 +510,20 @@ unsigned char *platform_parse_dhcp_response(unsigned char *buf, size_t len,
                                             unsigned char *our_mac,
                                             size_t *dhcp_len)
 {
-    struct ether_header *eth;
+    /* Use a portable ethernet header structure */
+    struct {
+        unsigned char ether_dhost[ETH_ALEN];
+        unsigned char ether_shost[ETH_ALEN];
+        unsigned short ether_type;
+    } *eth;
     struct ip *ip_hdr;
     struct udphdr *udp_hdr;
+    size_t eth_hdr_len = 14;
 
-    if (len < sizeof(struct ether_header))
+    if (len < eth_hdr_len)
         return NULL;
 
-    eth = (struct ether_header *)buf;
+    eth = (void *)buf;
 
     /* Check if packet is for us (unicast) or broadcast */
     if (memcmp(eth->ether_dhost, our_mac, ETH_ALEN) != 0) {
@@ -487,8 +537,8 @@ unsigned char *platform_parse_dhcp_response(unsigned char *buf, size_t len,
     if (ntohs(eth->ether_type) != ETHERTYPE_IP)
         return NULL;
 
-    buf += sizeof(struct ether_header);
-    len -= sizeof(struct ether_header);
+    buf += eth_hdr_len;
+    len -= eth_hdr_len;
 
     if (len < sizeof(struct ip))
         return NULL;
@@ -512,8 +562,13 @@ unsigned char *platform_parse_dhcp_response(unsigned char *buf, size_t len,
     udp_hdr = (struct udphdr *)buf;
 
     /* Check ports: src=67, dst=68 */
+#if defined(__OpenBSD__)
     if (ntohs(udp_hdr->uh_sport) != 67 || ntohs(udp_hdr->uh_dport) != 68)
         return NULL;
+#else
+    if (ntohs(udp_hdr->uh_sport) != 67 || ntohs(udp_hdr->uh_dport) != 68)
+        return NULL;
+#endif
 
     buf += sizeof(struct udphdr);
     len -= sizeof(struct udphdr);
@@ -549,7 +604,7 @@ iface_info_t *platform_list_interfaces(void)
         if (flags & IFF_POINTOPOINT)
             continue;
 
-        /* Only process AF_LINK entries (one per interface on macOS) */
+        /* Only process AF_LINK entries (one per interface on BSD) */
         if (ifa->ifa_addr->sa_family != AF_LINK)
             continue;
 
@@ -619,4 +674,4 @@ void platform_free_iface_list(iface_info_t *list)
     }
 }
 
-#endif /* __APPLE__ */
+#endif /* __APPLE__ || __FreeBSD__ || __OpenBSD__ || __NetBSD__ || __DragonFly__ */

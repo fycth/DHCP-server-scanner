@@ -18,7 +18,7 @@ A lightweight cross-platform command-line utility that scans your local network 
 
 ## Features
 
-- **Cross-platform** — Works on Linux and macOS
+- **Cross-platform** — Works on Linux, macOS, FreeBSD, OpenBSD, NetBSD, DragonFlyBSD
 - Fast network scanning for DHCP servers
 - Displays server MAC address, IP, and offered configuration
 - Shows comprehensive DHCP options:
@@ -39,13 +39,17 @@ A lightweight cross-platform command-line utility that scans your local network 
 |----------|----------------|
 | Linux    | Raw sockets (`PF_PACKET`) |
 | macOS    | BPF (Berkeley Packet Filter) |
+| FreeBSD  | BPF (Berkeley Packet Filter) |
+| OpenBSD  | BPF (Berkeley Packet Filter) |
+| NetBSD   | BPF (Berkeley Packet Filter) |
+| DragonFlyBSD | BPF (Berkeley Packet Filter) |
 
 ## Installation
 
 ### Prerequisites
 
-- Linux or macOS operating system
-- GCC compiler (or Clang on macOS)
+- Linux, macOS, or BSD operating system
+- C compiler (GCC, Clang, or system default)
 - Make
 - Root privileges (required for raw packet access)
 
@@ -157,7 +161,7 @@ The scanner works by:
 2. Listening for DHCP Offer responses from any servers on the network
 3. Parsing and displaying the offered configuration
 
-On Linux, this uses raw sockets (`PF_PACKET`). On macOS, where raw UDP sockets cannot send custom packets, the scanner uses BPF (Berkeley Packet Filter) to access the network at the data link layer.
+On Linux, this uses raw sockets (`PF_PACKET`). On macOS and BSD systems (FreeBSD, OpenBSD, NetBSD, DragonFlyBSD), the scanner uses BPF (Berkeley Packet Filter) to access the network at the data link layer.
 
 ## License
 

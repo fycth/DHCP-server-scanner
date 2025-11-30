@@ -1,7 +1,7 @@
 # DHCP Server Scanner Makefile
-# Cross-platform: Linux and macOS
+# Cross-platform: Linux, macOS, FreeBSD, OpenBSD, NetBSD
 
-CC = gcc
+CC ?= cc
 CFLAGS = -Wall -Wextra
 
 # Debug flags
@@ -23,7 +23,19 @@ ifeq ($(UNAME_S),Linux)
     PLATFORM_SRC = $(SRCDIR)/platform_linux.c
 endif
 ifeq ($(UNAME_S),Darwin)
-    PLATFORM_SRC = $(SRCDIR)/platform_darwin.c
+    PLATFORM_SRC = $(SRCDIR)/platform_bsd.c
+endif
+ifeq ($(UNAME_S),FreeBSD)
+    PLATFORM_SRC = $(SRCDIR)/platform_bsd.c
+endif
+ifeq ($(UNAME_S),OpenBSD)
+    PLATFORM_SRC = $(SRCDIR)/platform_bsd.c
+endif
+ifeq ($(UNAME_S),NetBSD)
+    PLATFORM_SRC = $(SRCDIR)/platform_bsd.c
+endif
+ifeq ($(UNAME_S),DragonFly)
+    PLATFORM_SRC = $(SRCDIR)/platform_bsd.c
 endif
 
 # Source files
