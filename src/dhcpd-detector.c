@@ -566,6 +566,8 @@ int dhcparse(struct _DHCPHeader * packet)
 
         printf("proposed IP: %d.%d.%d.%d\n", (val >> 24) & 0xff, (val >> 16) & 0xff, (val >> 8) & 0xff, val & 0xff);
     };
+
+    return 0;
 }
 
 /*
