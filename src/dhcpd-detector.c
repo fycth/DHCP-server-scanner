@@ -257,6 +257,11 @@ int talker(int sock)
     header_len = sizeof(PseudoHeader) + segment_len;
 
     hdr = (unsigned char *)malloc(header_len);
+    if (hdr == NULL)
+    {
+        fprintf(stderr, "malloc failed in talker()\n");
+        return 1;
+    }
     pseudo_header = (PseudoHeader *)hdr;
     pseudo_header->source_ip = ip_header->ip_src.s_addr;
     pseudo_header->dest_ip = ip_header->ip_dst.s_addr;
