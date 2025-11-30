@@ -10,6 +10,9 @@
 #define VERSION "1.0"
 
 #define PCKT_LEN 8192
+#define RECV_BUFFER_SIZE 1024
+#define MAX_RECV_ATTEMPTS 3
+#define MAX_DHCP_OPT_ITERATIONS 512
 
 struct _BOOTPHeader
 {

@@ -292,13 +292,13 @@ int listener(int sock)
     struct sockaddr_in raddr;
     struct ip *ihdr;
     struct udphdr *uhdr;
-    char buf[1024];
+    char buf[RECV_BUFFER_SIZE];
     int res;
     char * b;
     struct timeval timeout;
     fd_set recfd, errfd;
     int retval;
-    int counter = 3;
+    int counter = MAX_RECV_ATTEMPTS;
     socklen_t addrlen;
     struct _eth2 * pe;
 
@@ -337,7 +337,7 @@ int listener(int sock)
                 };
 
             addrlen = sizeof(struct sockaddr_in);
-            res = recvfrom(sock,buf,1024,0,(struct sockaddr *)&raddr,&addrlen);
+            res = recvfrom(sock,buf,RECV_BUFFER_SIZE,0,(struct sockaddr *)&raddr,&addrlen);
 
             if (-1 == res)
                 {
@@ -603,7 +603,7 @@ int dhcparse(struct _DHCPHeader * packet)
 unsigned char dhcpgetopt(unsigned char* options, unsigned char optcode, unsigned char optlen, void* optvalptr)
 {
     unsigned char i;
-    int max_iterations = 512; /* prevent infinite loop on malformed packets */
+    int max_iterations = MAX_DHCP_OPT_ITERATIONS;
 
     while (max_iterations-- > 0)
     {
