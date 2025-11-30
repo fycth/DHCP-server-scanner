@@ -43,7 +43,6 @@ unsigned char dhcpgetopt(unsigned char* options, unsigned char optcode, unsigned
 void usage(char * myname);
 int getsock();
 int getsock2();
-char compare_mac(unsigned char *, unsigned char *);
 void print_mac(unsigned char *);
 
 unsigned int ifindex;
@@ -347,7 +346,7 @@ int listener(int sock)
 
             pe = (struct _eth2 *)buf;
 
-            if (compare_mac(pe->dst_mac, mymac))
+            if (memcmp(pe->dst_mac, mymac, ETH_ALEN) == 0)
                 {
                     /* packet type should be IP - 0x0800 */
                     if (pe->type != htons(0x0800)) continue;
@@ -724,12 +723,3 @@ int getsock2()
     return s;
 }
 
-/*
-  compare two MAC addresses. return 0 if the're different and 1 if they're equal
- */
-char compare_mac(unsigned char *mac1, unsigned char *mac2)
-{
-    int i;
-    for (i = 0; i < 6; i++) if (mac1[i] != mac2[i]) return 0;
-    return 1;
-}
