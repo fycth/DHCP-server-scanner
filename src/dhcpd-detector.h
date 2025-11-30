@@ -14,8 +14,7 @@
 #define MAX_RECV_ATTEMPTS 3
 #define MAX_DHCP_OPT_ITERATIONS 512
 
-struct _BOOTPHeader
-{
+typedef struct bootp_header {
     unsigned char	op;		///< Message op-code / message type
     unsigned char	htype;		///< Hardware address type   (Ethernet=1)
     unsigned char	hlen;		///< Hardware address length (Ethernet=6 byte MAC addr)
@@ -30,14 +29,13 @@ struct _BOOTPHeader
     unsigned char	chaddr[16];	///< Client Hardware Address
     unsigned char	sname[64];	///< Server Host Name
     unsigned char	file[128];	///< Boot file name (null-term string)
-} BOOTPHeader;
-							
-struct _DHCPHeader
-{
-    struct _BOOTPHeader bootp;
+} bootp_header_t;
+
+typedef struct dhcp_header {
+    bootp_header_t bootp;
     unsigned int cookie;
     unsigned char options[];
-};
+} dhcp_header_t;
 
 #define BOOTREQUEST 1
 #define BOOTREPLY 2

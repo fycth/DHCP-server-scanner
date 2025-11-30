@@ -209,12 +209,12 @@ int platform_send_dhcp_discover(platform_ctx_t *ctx, unsigned char *mac, uint32_
     struct sockaddr_in raddr;
     struct ip *ip_header;
     struct udphdr *udp_header;
-    struct _DHCPHeader *packet;
+    dhcp_header_t *packet;
     unsigned char *options;
     int count = 0;
     int segment_len, header_len;
     unsigned char *hdr;
-    PseudoHeader *pseudo_header;
+    pseudo_header_t *pseudo_header;
     int one = 1;
 
     memset(buffer, 0, sizeof(buffer));
@@ -223,7 +223,7 @@ int platform_send_dhcp_discover(platform_ctx_t *ctx, unsigned char *mac, uint32_
 
     ip_header = (struct ip *)buffer;
     udp_header = (struct udphdr *)(buffer + sizeof(struct ip));
-    packet = (struct _DHCPHeader *)(buffer + sizeof(struct ip) + sizeof(struct udphdr));
+    packet = (dhcp_header_t *)(buffer + sizeof(struct ip) + sizeof(struct udphdr));
 
     raddr.sin_family = AF_INET;
     raddr.sin_addr.s_addr = INADDR_BROADCAST;
@@ -296,10 +296,10 @@ int platform_send_dhcp_discover(platform_ctx_t *ctx, unsigned char *mac, uint32_
     udp_header->len = htons(sizeof(struct udphdr) + count + DHCP_HEADER_LEN);
 
     /* Calculate checksums */
-    ip_header->ip_sum = ComputeChecksum((unsigned char *)ip_header, ip_header->ip_hl * 4);
+    ip_header->ip_sum = compute_checksum((unsigned char *)ip_header, ip_header->ip_hl * 4);
 
     segment_len = (sizeof(struct ip) + sizeof(struct udphdr) + count + DHCP_HEADER_LEN) - ip_header->ip_hl * 4;
-    header_len = sizeof(PseudoHeader) + segment_len;
+    header_len = sizeof(pseudo_header_t) + segment_len;
 
     hdr = malloc(header_len);
     if (!hdr) {
@@ -307,16 +307,16 @@ int platform_send_dhcp_discover(platform_ctx_t *ctx, unsigned char *mac, uint32_
         return -1;
     }
 
-    pseudo_header = (PseudoHeader *)hdr;
+    pseudo_header = (pseudo_header_t *)hdr;
     pseudo_header->source_ip = ip_header->ip_src.s_addr;
     pseudo_header->dest_ip = ip_header->ip_dst.s_addr;
     pseudo_header->reserved = 0;
     pseudo_header->protocol = ip_header->ip_p;
     pseudo_header->udp_length = htons(segment_len);
 
-    memcpy(hdr + sizeof(PseudoHeader), udp_header, 8);
-    memcpy(hdr + sizeof(PseudoHeader) + 8, packet, count + DHCP_HEADER_LEN);
-    udp_header->check = ComputeChecksum(hdr, header_len);
+    memcpy(hdr + sizeof(pseudo_header_t), udp_header, 8);
+    memcpy(hdr + sizeof(pseudo_header_t) + 8, packet, count + DHCP_HEADER_LEN);
+    udp_header->check = compute_checksum(hdr, header_len);
     free(hdr);
 
     /* Set IP_HDRINCL */

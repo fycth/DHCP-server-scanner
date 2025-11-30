@@ -9,14 +9,13 @@
 
 #include <stdint.h>
 
-//PseudoHeader struct used to calculate UDP checksum.
-typedef struct PseudoHeader
-{
+/* pseudo_header_t struct used to calculate UDP checksum */
+typedef struct pseudo_header {
     uint32_t source_ip;
     uint32_t dest_ip;
     unsigned char reserved;
     unsigned char protocol;
     unsigned short int udp_length;
-} PseudoHeader;
+} pseudo_header_t;
 
 #endif

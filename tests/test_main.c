@@ -56,9 +56,9 @@ static int tests_failed = 0;
 #include "../src/sum.h"
 #include "../src/dhcpd-detector.h"
 
-/* Re-implement dhcpgetopt for testing (from dhcpd-detector.c) */
-unsigned char dhcpgetopt(unsigned char *options, unsigned char optcode,
-                         unsigned char optlen, void *optvalptr)
+/* Re-implement dhcp_get_opt for testing (from dhcpd-detector.c) */
+unsigned char dhcp_get_opt(unsigned char *options, unsigned char optcode,
+                           unsigned char optlen, void *optvalptr)
 {
     unsigned char i;
     int max_iterations = MAX_DHCP_OPT_ITERATIONS;
@@ -83,13 +83,13 @@ unsigned char dhcpgetopt(unsigned char *options, unsigned char optcode,
 }
 
 /*
- * Tests for ComputeChecksum
+ * Tests for compute_checksum
  */
 
 TEST(test_checksum_zeros)
 {
     unsigned char data[] = {0, 0, 0, 0};
-    unsigned short result = ComputeChecksum(data, 4);
+    unsigned short result = compute_checksum(data, 4);
     /* All zeros should give 0xFFFF after complement */
     ASSERT_EQ(result, 0xFFFF);
     TEST_PASSED();
@@ -98,7 +98,7 @@ TEST(test_checksum_zeros)
 TEST(test_checksum_ones)
 {
     unsigned char data[] = {0xFF, 0xFF, 0xFF, 0xFF};
-    unsigned short result = ComputeChecksum(data, 4);
+    unsigned short result = compute_checksum(data, 4);
     /* Result should be 0 (since ~0xFFFF = 0) */
     ASSERT_EQ(result, 0x0000);
     TEST_PASSED();
@@ -107,7 +107,7 @@ TEST(test_checksum_ones)
 TEST(test_checksum_odd_length)
 {
     unsigned char data[] = {0x01, 0x02, 0x03};
-    unsigned short result = ComputeChecksum(data, 3);
+    unsigned short result = compute_checksum(data, 3);
     /* Should handle odd length properly */
     ASSERT(result != 0 || result == 0); /* Just verify it doesn't crash */
     TEST_PASSED();
@@ -123,7 +123,7 @@ TEST(test_checksum_known_value)
         0xc0, 0xa8, 0x00, 0x01,
         0xc0, 0xa8, 0x00, 0xc7
     };
-    unsigned short result = ComputeChecksum(ip_header, 20);
+    unsigned short result = compute_checksum(ip_header, 20);
     /* Verify checksum is non-zero and consistent */
     ASSERT(result != 0);
     /* The computed checksum should be 0x61b8 (endianness) */
@@ -134,16 +134,16 @@ TEST(test_checksum_known_value)
 TEST(test_checksum_empty)
 {
     unsigned char data[] = {};
-    unsigned short result = ComputeChecksum(data, 0);
+    unsigned short result = compute_checksum(data, 0);
     ASSERT_EQ(result, 0xFFFF);
     TEST_PASSED();
 }
 
 /*
- * Tests for dhcpgetopt
+ * Tests for dhcp_get_opt
  */
 
-TEST(test_dhcpgetopt_simple)
+TEST(test_dhcp_get_opt_simple)
 {
     /* Simple option: type 53 (message type), length 1, value 2 (OFFER) */
     unsigned char options[] = {
@@ -151,13 +151,13 @@ TEST(test_dhcpgetopt_simple)
         DHO_END
     };
     unsigned char msgtype = 0;
-    unsigned char len = dhcpgetopt(options, DHO_DHCP_MESSAGE_TYPE, 1, &msgtype);
+    unsigned char len = dhcp_get_opt(options, DHO_DHCP_MESSAGE_TYPE, 1, &msgtype);
     ASSERT_EQ(len, 1);
     ASSERT_EQ(msgtype, DHCPOFFER);
     TEST_PASSED();
 }
 
-TEST(test_dhcpgetopt_with_padding)
+TEST(test_dhcp_get_opt_with_padding)
 {
     /* Options with PAD bytes before the actual option */
     unsigned char options[] = {
@@ -166,13 +166,13 @@ TEST(test_dhcpgetopt_with_padding)
         DHO_END
     };
     unsigned char msgtype = 0;
-    unsigned char len = dhcpgetopt(options, DHO_DHCP_MESSAGE_TYPE, 1, &msgtype);
+    unsigned char len = dhcp_get_opt(options, DHO_DHCP_MESSAGE_TYPE, 1, &msgtype);
     ASSERT_EQ(len, 1);
     ASSERT_EQ(msgtype, DHCPACK);
     TEST_PASSED();
 }
 
-TEST(test_dhcpgetopt_multiple_options)
+TEST(test_dhcp_get_opt_multiple_options)
 {
     /* Multiple options, find the second one */
     unsigned char options[] = {
@@ -181,7 +181,7 @@ TEST(test_dhcpgetopt_multiple_options)
         DHO_END
     };
     unsigned int mask = 0;
-    unsigned char len = dhcpgetopt(options, DHO_SUBNET_MASK, 4, &mask);
+    unsigned char len = dhcp_get_opt(options, DHO_SUBNET_MASK, 4, &mask);
     ASSERT_EQ(len, 4);
     /* Mask should be 255.255.255.0 in network byte order */
     unsigned char *mask_bytes = (unsigned char *)&mask;
@@ -192,30 +192,30 @@ TEST(test_dhcpgetopt_multiple_options)
     TEST_PASSED();
 }
 
-TEST(test_dhcpgetopt_not_found)
+TEST(test_dhcp_get_opt_not_found)
 {
     unsigned char options[] = {
         DHO_DHCP_MESSAGE_TYPE, 1, DHCPOFFER,
         DHO_END
     };
     unsigned int router = 0;
-    unsigned char len = dhcpgetopt(options, DHO_ROUTERS, 4, &router);
+    unsigned char len = dhcp_get_opt(options, DHO_ROUTERS, 4, &router);
     ASSERT_EQ(len, 0);
     ASSERT_EQ(router, 0);
     TEST_PASSED();
 }
 
-TEST(test_dhcpgetopt_end_only)
+TEST(test_dhcp_get_opt_end_only)
 {
     unsigned char options[] = { DHO_END };
     unsigned char msgtype = 0xFF;
-    unsigned char len = dhcpgetopt(options, DHO_DHCP_MESSAGE_TYPE, 1, &msgtype);
+    unsigned char len = dhcp_get_opt(options, DHO_DHCP_MESSAGE_TYPE, 1, &msgtype);
     ASSERT_EQ(len, 0);
     ASSERT_EQ(msgtype, 0xFF); /* Should remain unchanged */
     TEST_PASSED();
 }
 
-TEST(test_dhcpgetopt_truncate_to_requested_len)
+TEST(test_dhcp_get_opt_truncate_to_requested_len)
 {
     /* Option has 4 bytes but we only request 2 */
     unsigned char options[] = {
@@ -223,14 +223,14 @@ TEST(test_dhcpgetopt_truncate_to_requested_len)
         DHO_END
     };
     unsigned char val[2] = {0, 0};
-    unsigned char len = dhcpgetopt(options, DHO_SUBNET_MASK, 2, val);
+    unsigned char len = dhcp_get_opt(options, DHO_SUBNET_MASK, 2, val);
     ASSERT_EQ(len, 4); /* Returns actual length */
     ASSERT_EQ(val[0], 0xAA);
     ASSERT_EQ(val[1], 0xBB);
     TEST_PASSED();
 }
 
-TEST(test_dhcpgetopt_server_identifier)
+TEST(test_dhcp_get_opt_server_identifier)
 {
     /* Test DHO_DHCP_SERVER_IDENTIFIER option */
     unsigned char options[] = {
@@ -239,7 +239,7 @@ TEST(test_dhcpgetopt_server_identifier)
         DHO_END
     };
     unsigned int server_ip = 0;
-    unsigned char len = dhcpgetopt(options, DHO_DHCP_SERVER_IDENTIFIER, 4, &server_ip);
+    unsigned char len = dhcp_get_opt(options, DHO_DHCP_SERVER_IDENTIFIER, 4, &server_ip);
     ASSERT_EQ(len, 4);
     unsigned char *ip_bytes = (unsigned char *)&server_ip;
     ASSERT_EQ(ip_bytes[0], 192);
@@ -249,7 +249,7 @@ TEST(test_dhcpgetopt_server_identifier)
     TEST_PASSED();
 }
 
-TEST(test_dhcpgetopt_dns_servers)
+TEST(test_dhcp_get_opt_dns_servers)
 {
     /* Multiple DNS servers (8 bytes = 2 IPs) */
     unsigned char options[] = {
@@ -259,7 +259,7 @@ TEST(test_dhcpgetopt_dns_servers)
         DHO_END
     };
     unsigned char dns[8] = {0};
-    unsigned char len = dhcpgetopt(options, DHO_DOMAIN_NAME_SERVERS, 8, dns);
+    unsigned char len = dhcp_get_opt(options, DHO_DOMAIN_NAME_SERVERS, 8, dns);
     ASSERT_EQ(len, 8);
     ASSERT_EQ(dns[0], 8);
     ASSERT_EQ(dns[1], 8);
@@ -287,14 +287,14 @@ int main(void)
     RUN_TEST(test_checksum_empty);
 
     printf("\nDHCP option parser tests:\n");
-    RUN_TEST(test_dhcpgetopt_simple);
-    RUN_TEST(test_dhcpgetopt_with_padding);
-    RUN_TEST(test_dhcpgetopt_multiple_options);
-    RUN_TEST(test_dhcpgetopt_not_found);
-    RUN_TEST(test_dhcpgetopt_end_only);
-    RUN_TEST(test_dhcpgetopt_truncate_to_requested_len);
-    RUN_TEST(test_dhcpgetopt_server_identifier);
-    RUN_TEST(test_dhcpgetopt_dns_servers);
+    RUN_TEST(test_dhcp_get_opt_simple);
+    RUN_TEST(test_dhcp_get_opt_with_padding);
+    RUN_TEST(test_dhcp_get_opt_multiple_options);
+    RUN_TEST(test_dhcp_get_opt_not_found);
+    RUN_TEST(test_dhcp_get_opt_end_only);
+    RUN_TEST(test_dhcp_get_opt_truncate_to_requested_len);
+    RUN_TEST(test_dhcp_get_opt_server_identifier);
+    RUN_TEST(test_dhcp_get_opt_dns_servers);
 
     printf("\n=== Results ===\n");
     printf("Tests run:    %d\n", tests_run);

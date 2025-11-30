@@ -272,11 +272,11 @@ int platform_send_dhcp_discover(platform_ctx_t *ctx, unsigned char *mac, uint32_
     unsigned char *p = frame;
     struct ip *ip_hdr;
     struct udphdr *udp_hdr;
-    struct _DHCPHeader *dhcp;
+    dhcp_header_t *dhcp;
     unsigned char *options;
     int count = 0;
     int ip_len, udp_len, total_len;
-    PseudoHeader pseudo;
+    pseudo_header_t pseudo;
     unsigned char pseudo_buf[1500];
     ssize_t sent;
 
@@ -310,7 +310,7 @@ int platform_send_dhcp_discover(platform_ctx_t *ctx, unsigned char *mac, uint32_
     p += sizeof(struct udphdr);
 
     /* DHCP packet */
-    dhcp = (struct _DHCPHeader *)p;
+    dhcp = (dhcp_header_t *)p;
     dhcp->bootp.op = BOOTREQUEST;
     dhcp->bootp.htype = HTYPE_ETHER;
     dhcp->bootp.hlen = HTYPE_LEN;
@@ -363,7 +363,7 @@ int platform_send_dhcp_discover(platform_ctx_t *ctx, unsigned char *mac, uint32_
     /* Set IP length and checksum */
     ip_hdr->ip_len = htons(ip_len);
     ip_hdr->ip_sum = 0;
-    ip_hdr->ip_sum = ComputeChecksum((unsigned char *)ip_hdr, sizeof(struct ip));
+    ip_hdr->ip_sum = compute_checksum((unsigned char *)ip_hdr, sizeof(struct ip));
 
     /* Set UDP length and checksum */
     udp_hdr->uh_ulen = htons(udp_len);
@@ -378,7 +378,7 @@ int platform_send_dhcp_discover(platform_ctx_t *ctx, unsigned char *mac, uint32_
 
     memcpy(pseudo_buf, &pseudo, sizeof(pseudo));
     memcpy(pseudo_buf + sizeof(pseudo), udp_hdr, udp_len);
-    udp_hdr->uh_sum = ComputeChecksum(pseudo_buf, sizeof(pseudo) + udp_len);
+    udp_hdr->uh_sum = compute_checksum(pseudo_buf, sizeof(pseudo) + udp_len);
 
     /* Send via BPF */
     sent = write(ctx->bpf_fd, frame, total_len);

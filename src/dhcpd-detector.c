@@ -21,9 +21,9 @@
 #include "platform.h"
 
 /* Function prototypes */
-int dhcparse(struct _DHCPHeader *packet, uint32_t xid);
-unsigned char dhcpgetopt(unsigned char *options, unsigned char optcode,
-                         unsigned char optlen, void *optvalptr);
+int dhcp_parse(dhcp_header_t *packet, uint32_t xid);
+unsigned char dhcp_get_opt(unsigned char *options, unsigned char optcode,
+                           unsigned char optlen, void *optvalptr);
 void usage(const char *myname);
 void print_mac(unsigned char *mac);
 void print_ip(const char *label, unsigned int ip);
@@ -162,7 +162,7 @@ int main(int argc, char *argv[])
             printf("DHCP server MAC: ");
             print_mac(src_mac);
 
-            dhcparse((struct _DHCPHeader *)dhcp_data, xid);
+            dhcp_parse((dhcp_header_t *)dhcp_data, xid);
         }
 
         counter--;
@@ -201,7 +201,7 @@ void print_ip(const char *label, unsigned int ip)
 /*
   parse DHCP packet and printout it
  */
-int dhcparse(struct _DHCPHeader *packet, uint32_t xid)
+int dhcp_parse(dhcp_header_t *packet, uint32_t xid)
 {
     unsigned char msgtype;
     unsigned int val;
@@ -209,9 +209,9 @@ int dhcparse(struct _DHCPHeader *packet, uint32_t xid)
     unsigned char tmp;
     unsigned char valc[255];
 
-    unsigned int DhcpServerIP;
-    unsigned int DhcpNetmask;
-    unsigned int DhcpGatewayIP = 0;
+    unsigned int dhcp_server_ip;
+    unsigned int dhcp_netmask;
+    unsigned int dhcp_gateway_ip = 0;
 
     /* check that this is a DHCP response */
     if (packet->bootp.op != BOOTREPLY ||
@@ -221,7 +221,7 @@ int dhcparse(struct _DHCPHeader *packet, uint32_t xid)
         packet->bootp.xid != xid)
         return -1;
 
-    dhcpgetopt(packet->options, DHO_DHCP_MESSAGE_TYPE, 1, &msgtype);
+    dhcp_get_opt(packet->options, DHO_DHCP_MESSAGE_TYPE, 1, &msgtype);
 
     printf("DHCP: Received msgtype = %d\n", msgtype);
 
@@ -231,11 +231,11 @@ int dhcparse(struct _DHCPHeader *packet, uint32_t xid)
     if (msgtype == DHCPOFFER) {
         /* get server IP */
         val = 0;
-        dhcpgetopt(packet->options, DHO_DHCP_SERVER_IDENTIFIER, 4, &val);
+        dhcp_get_opt(packet->options, DHO_DHCP_SERVER_IDENTIFIER, 4, &val);
         if (val == 0)
             val = packet->bootp.siaddr;
-        DhcpServerIP = ntohl(val);
-        print_ip("DHCP server IP ", DhcpServerIP);
+        dhcp_server_ip = ntohl(val);
+        print_ip("DHCP server IP ", dhcp_server_ip);
 
         /* get DHCP relay */
         print_ip("DHCP relay IP ", ntohl(packet->bootp.giaddr));
@@ -245,21 +245,21 @@ int dhcparse(struct _DHCPHeader *packet, uint32_t xid)
 
         /* get netmask */
         val = 0;
-        dhcpgetopt(packet->options, DHO_SUBNET_MASK, 4, &val);
-        DhcpNetmask = htonl(val);
-        if (DhcpNetmask == 0)
-            DhcpNetmask = 0xffffff00;
-        print_ip("proposed MASK: ", DhcpNetmask);
+        dhcp_get_opt(packet->options, DHO_SUBNET_MASK, 4, &val);
+        dhcp_netmask = htonl(val);
+        if (dhcp_netmask == 0)
+            dhcp_netmask = 0xffffff00;
+        print_ip("proposed MASK: ", dhcp_netmask);
 
         /* get gateway */
         val = 0;
-        dhcpgetopt(packet->options, DHO_ROUTERS, 4, &val);
+        dhcp_get_opt(packet->options, DHO_ROUTERS, 4, &val);
         if (val != 0)
-            DhcpGatewayIP = htonl(val);
-        print_ip("proposed GW: ", DhcpGatewayIP);
+            dhcp_gateway_ip = htonl(val);
+        print_ip("proposed GW: ", dhcp_gateway_ip);
 
         /* get dns */
-        tmp = dhcpgetopt(packet->options, DHO_DOMAIN_NAME_SERVERS, 255, &valc) / 4;
+        tmp = dhcp_get_opt(packet->options, DHO_DOMAIN_NAME_SERVERS, 255, &valc) / 4;
         for (cnt = 0; cnt < tmp; cnt++) {
             char dns_label[32];
             snprintf(dns_label, sizeof(dns_label), "proposed DNS %d: ", cnt);
@@ -276,8 +276,8 @@ int dhcparse(struct _DHCPHeader *packet, uint32_t xid)
 /*
   get an option from DHCP packet
  */
-unsigned char dhcpgetopt(unsigned char *options, unsigned char optcode,
-                         unsigned char optlen, void *optvalptr)
+unsigned char dhcp_get_opt(unsigned char *options, unsigned char optcode,
+                           unsigned char optlen, void *optvalptr)
 {
     unsigned char i;
     int max_iterations = MAX_DHCP_OPT_ITERATIONS;

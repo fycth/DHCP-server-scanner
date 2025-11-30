@@ -4,7 +4,7 @@
 
 #define u_int32_t unsigned int
 
-static inline unsigned short ComputeChecksum(unsigned char *data, int len)
+static inline unsigned short compute_checksum(unsigned char *data, int len)
 {
     long sum = 0;  /* assume 32 bit long, 16 bit short */
     unsigned short *temp = (unsigned short *)data;
